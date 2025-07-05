@@ -9,7 +9,7 @@ import io
 site_url = "https://gruporocio.sharepoint.com/sites/IDesarrollo"
 ruta_archivo_abiertos = "/sites/IDesarrollo/Documentos compartidos/Libro Verde/Reproductoras/Libro Verde Reproductoras.xlsx"
 usuario = "cmedina@gruporocio.com"
-contrasena = "x*"  # ⚠️ Reemplaza esto localmente por tu contraseña
+contrasena = "3412.abcD*"  # ⚠️ Reemplaza esto localmente por tu contraseña
 
 # --- DESCARGAR ARCHIVO DE ABIERTOS DESDE SHAREPOINT --- #
 @st.cache_data(show_spinner=False)
