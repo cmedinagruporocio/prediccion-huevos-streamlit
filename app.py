@@ -1,19 +1,20 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
+import plotly.express as px
 
 # --- CONFIGURACIÓN DE PÁGINA --- #
 st.set_page_config(page_title="Predicción Huevos", layout="wide")
 st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
-Esta aplicación permite visualizar la curva **real** (según datos subidos manualmente) y la **curva proyectada**
-(generada previamente mediante un modelo híbrido de machine learning + regresión local).
-También se incluye una **banda de incertidumbre** (percentiles 25 y 75).
+Esta aplicación permite visualizar la curva **real** (según datos subidos manualmente), 
+la **curva proyectada** (generada mediante modelo híbrido con ML) y la **línea estándar** 
+de referencia para cada lote.
 """)
 
-# --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
+# --- 1. CARGA DEL ARCHIVO REAL --- #
 st.header("📥 Paso 1: Subir archivo real desde SharePoint")
+
 archivo_real = st.file_uploader("Sube el archivo `Libro Verde Reproductoras.xlsx`", type=["xlsx"], key="archivo_real")
 
 if archivo_real is None:
@@ -23,7 +24,7 @@ if archivo_real is None:
 # --- 2. LEER ARCHIVO REAL --- #
 df_reales = pd.read_excel(archivo_real)
 df_reales = df_reales[df_reales['Estado'].str.strip().str.capitalize() == 'Abierto']
-df_reales = df_reales[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales']]
+df_reales = df_reales[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales', 'Porcentaje_HuevoTotal_Estandar']]
 
 # --- 3. CARGA DEL ARCHIVO DE PREDICCIONES --- #
 st.header("📄 Paso 2: Visualización de curvas reales y proyectadas")
@@ -31,7 +32,7 @@ st.header("📄 Paso 2: Visualización de curvas reales y proyectadas")
 try:
     df_pred = pd.read_excel("predicciones_huevos.xlsx")
 except FileNotFoundError:
-    st.error("❌ No se encontró el archivo `predicciones_huevos.xlsx`.")
+    st.error("❌ No se encontró el archivo `predicciones_huevos.xlsx` en la carpeta.")
     st.stop()
 
 # --- 4. SELECCIÓN DE GRANJA + LOTE --- #
@@ -45,53 +46,34 @@ granja_sel, lote_sel = opcion.split(" - ")
 reales = df_reales[(df_reales['GRANJA'] == granja_sel) & (df_reales['LOTE'] == lote_sel)].copy()
 pred = df_pred[(df_pred['GRANJA'] == granja_sel) & (df_pred['LOTE'] == lote_sel)].copy()
 
-# --- 6. GRAFICAR CON BANDA DE INCERTIDUMBRE --- #
-fig = go.Figure()
-
 # Curva real
-fig.add_trace(go.Scatter(
-    x=reales['SEMPROD'],
-    y=reales['Porcentaje_HuevosTotales'],
-    mode='lines+markers',
-    name='Real',
-    line=dict(color='blue')
-))
+reales_plot = reales[['SEMPROD', 'Porcentaje_HuevosTotales']].rename(columns={'Porcentaje_HuevosTotales': 'Valor'})
+reales_plot['Tipo'] = 'Real'
 
 # Curva proyectada
-fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'],
-    y=pred['Prediccion_Porcentaje_HuevosTotales'],
-    mode='lines+markers',
-    name='Predicción',
-    line=dict(color='orange')
-))
+pred_plot = pred[['SEMPROD', 'Prediccion_Porcentaje_HuevosTotales']].rename(columns={'Prediccion_Porcentaje_HuevosTotales': 'Valor'})
+pred_plot['Tipo'] = 'Predicción'
 
-# Banda de incertidumbre
-fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'],
-    y=pred['P95'],
-    mode='lines',
-    name='P95 (límite superior)',
-    line=dict(width=0),
-    showlegend=False
-))
-fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'],
-    y=pred['P5'],
-    mode='lines',
-    name='P5 (límite inferior)',
-    fill='tonexty',
-    fillcolor='rgba(255,165,0,0.2)',
-    line=dict(width=0),
-    showlegend=True
-))
+# Línea estándar
+estandar_valor = reales['Porcentaje_HuevoTotal_Estandar'].iloc[0]
+df_estandar = pd.DataFrame({
+    'SEMPROD': pred['SEMPROD'],
+    'Valor': estandar_valor,
+    'Tipo': 'Estándar'
+})
 
-# Layout
-fig.update_layout(
+# Concatenar todo para graficar
+df_plot = pd.concat([reales_plot, pred_plot, df_estandar], ignore_index=True)
+
+# --- 6. GRÁFICO --- #
+fig = px.line(
+    df_plot,
+    x='SEMPROD',
+    y='Valor',
+    color='Tipo',
+    markers=True,
     title=f"📊 Granja: {granja_sel} | Lote: {lote_sel}",
-    xaxis_title='Semana Productiva (SEMPROD)',
-    yaxis_title='Porcentaje Huevos',
-    hovermode='x unified'
+    labels={'SEMPROD': 'Semana Productiva', 'Valor': 'Porcentaje Huevos'}
 )
 
 st.plotly_chart(fig, use_container_width=True)
