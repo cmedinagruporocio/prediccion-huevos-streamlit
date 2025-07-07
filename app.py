@@ -4,14 +4,14 @@ import plotly.graph_objects as go
 
 # --- CONFIGURACIÓN DE PÁGINA --- #
 st.set_page_config(page_title="Predicción Huevos", layout="wide")
-st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
+st.title("\U0001F4C8 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
-Esta aplicación permite visualizar la curva **real**, la **curva proyectada** y la **banda de incertidumbre (P5–P95)**, junto con el **promedio del estándar** histórico por semana.
+Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (P5-P95)** y el **promedio del estándar** histórico por semana.
 """)
 
 # --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
-st.header("📥 Paso 1: Subir archivo real desde SharePoint")
+st.header("\U0001F4E5 Paso 1: Subir archivo real desde SharePoint")
 archivo_real = st.file_uploader("Sube el archivo `Libro Verde Reproductoras.xlsx`", type=["xlsx"])
 
 if archivo_real is None:
@@ -43,7 +43,7 @@ df_abiertos = df[df['Estado'] == 'Abierto']
 df_abiertos = df_abiertos[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales']]
 
 # --- 5. CARGAR PREDICCIONES --- #
-st.header("📄 Paso 2: Visualización de curvas reales y proyectadas")
+st.header("\U0001F4C4 Paso 2: Visualización de curvas reales y proyectadas")
 try:
     df_pred = pd.read_excel("predicciones_huevos.xlsx")
 except FileNotFoundError:
@@ -81,7 +81,7 @@ fig.add_trace(go.Scatter(
     line=dict(color='orange')
 ))
 
-# Banda de incertidumbre (P5–P95) con tooltip personalizado
+# Relleno entre P5 y P95 (sin tooltip)
 fig.add_trace(go.Scatter(
     x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
     y=pd.concat([pred['P95'], pred['P5'][::-1]]),
@@ -89,15 +89,20 @@ fig.add_trace(go.Scatter(
     fillcolor='rgba(255,165,0,0.2)',
     line=dict(color='rgba(255,255,255,0)'),
     name='Incertidumbre (P5–P95)',
+    hoverinfo='skip',
+    showlegend=True
+))
+
+# Hover visible con valores de incertidumbre
+hover_text = [f"Incertidumbre ({round(p5,1)} - {round(p95,1)})" for p5, p95 in zip(pred['P5'], pred['P95'])]
+fig.add_trace(go.Scatter(
+    x=pred['SEMPROD'],
+    y=pred['P95'],
+    mode='lines',
+    line=dict(width=0),
+    showlegend=False,
     hoverinfo='text',
-    showlegend=True,
-    text=[
-        f"Incertidumbre ({round(p5,1)}–{round(p95,1)})"
-        for p5, p95 in zip(pred['P5'], pred['P95'])
-    ] + [
-        f"Incertidumbre ({round(p5,1)}–{round(p95,1)})"
-        for p5, p95 in zip(pred['P5'][::-1], pred['P95'][::-1])
-    ]
+    text=hover_text
 ))
 
 # Línea del estándar promedio (línea negra continua sin markers)
@@ -109,9 +114,8 @@ fig.add_trace(go.Scatter(
     line=dict(color='black')
 ))
 
-# Layout
 fig.update_layout(
-    title=f"📊 Granja: {granja_sel} | Lote: {lote_sel}",
+    title=f"\U0001F4CA Granja: {granja_sel} | Lote: {lote_sel}",
     xaxis_title="Semana Productiva",
     yaxis_title="Porcentaje de Huevos",
     xaxis=dict(tickmode='linear', dtick=1),
