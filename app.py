@@ -95,6 +95,12 @@ fig.add_trace(go.Scatter(
 ))
 
 # Banda de incertidumbre con tooltip personalizado
+tooltip_text = [
+    f"Incertidumbre ({p5:.1f}–{p95:.1f})" for p5, p95 in zip(pred['P5'], pred['P95'])
+] + [
+    f"Incertidumbre ({p5:.1f}–{p95:.1f})" for p5, p95 in zip(pred['P5'][::-1], pred['P95'][::-1])
+]
+
 fig.add_trace(go.Scatter(
     x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
     y=pd.concat([pred['P95'], pred['P5'][::-1]]),
@@ -102,23 +108,19 @@ fig.add_trace(go.Scatter(
     fillcolor='rgba(255,165,0,0.2)',
     line=dict(color='rgba(255,255,255,0)'),
     hoverinfo="text",
+    text=tooltip_text,
     showlegend=True,
-    name='Incertidumbre (P5–P95)',
-   text=[
-    f"Incertidumbre ({p5:.1f}–{p95:.1f})" for p5, p95 in zip(pred['P5'], pred['P95'])
-] + [
-    f"Incertidumbre ({p5:.1f}–{p95:.1f})" for p5, p95 in zip(pred['P5'][::-1], pred['P95'][::-1])
-]
-
+    name='Incertidumbre (P5–P95)'
 ))
 
-# Línea del estándar promedio (negra continua sin markers)
+# Línea del estándar (negra continua sin markers, con tooltip personalizado)
 fig.add_trace(go.Scatter(
     x=promedio_estandar['SEMPROD'],
     y=promedio_estandar['Estandar'],
     mode='lines',
-    name='Estándar Promedio',
-    line=dict(color='black')
+    name='Estándar',
+    line=dict(color='black'),
+    hovertemplate='Estándar: %{y:.1f}<extra></extra>'
 ))
 
 fig.update_layout(
