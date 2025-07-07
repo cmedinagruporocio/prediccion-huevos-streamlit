@@ -94,7 +94,7 @@ fig.add_trace(go.Scatter(
     line=dict(color='orange')
 ))
 
-# Banda de incertidumbre (relleno entre P5 y P95)
+# Banda de incertidumbre (P5–P95)
 fig.add_trace(go.Scatter(
     x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
     y=pd.concat([pred['P95'], pred['P5'][::-1]]),
@@ -103,29 +103,27 @@ fig.add_trace(go.Scatter(
     line=dict(color='rgba(255,255,255,0)'),
     hoverinfo="skip",
     showlegend=True,
-    name='Incertidumbre (P5–P95)'
+    name='Incertidumbre (90%)'
 ))
 
-# Líneas invisibles para mostrar P5 y P95 en tooltip
-fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'],
-    y=pred['P5'],
-    mode='lines',
-    line=dict(width=0),
-    hovertemplate='P5: %{y:.1f}<extra></extra>',
-    showlegend=False
-))
+# Tooltip invisible para mostrar valores reales de P5 y P95
+tooltip_text = [
+    f"<b>Incertidumbre (90%)</b><br>Valor Mínimo: {p5:.1f}<br>Valor Máximo: {p95:.1f}"
+    for p5, p95 in zip(pred['P5'], pred['P95'])
+]
 
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'],
-    y=pred['P95'],
-    mode='lines',
-    line=dict(width=0),
-    hovertemplate='P95: %{y:.1f}<extra></extra>',
-    showlegend=False
+    y=pred['Prediccion_Porcentaje_HuevosTotales'],
+    mode='markers',
+    marker=dict(opacity=0),
+    hoverinfo='text',
+    text=tooltip_text,
+    showlegend=False,
+    name=''
 ))
 
-# Línea de estándar promedio
+# Línea del estándar
 fig.add_trace(go.Scatter(
     x=promedio_estandar['SEMPROD'],
     y=promedio_estandar['Estandar'],
