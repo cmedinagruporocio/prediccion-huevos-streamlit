@@ -9,7 +9,7 @@ st.set_page_config(page_title="Predicción Huevos", layout="wide")
 st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
-Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, el **promedio del estándar** histórico por semana, el **saldo de hembras** (eje secundario) y los **Huevos Totales** reales (como referencia visual).
+Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, el **promedio del estándar** histórico por semana, el **saldo de hembras** (eje secundario), y el **acumulado de huevos totales** (como referencia visual).
 """)
 
 # --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
@@ -39,7 +39,7 @@ promedio_estandar = semanas_1_45.merge(promedio_estandar, on='SEMPROD', how='lef
 
 # --- 4. FILTRAR LOTES ABIERTOS --- #
 df_abiertos = df[df['Estado'] == 'Abierto']
-df_abiertos = df_abiertos[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales', 'Saldo_Hembras', 'HuevosTotales']]
+df_abiertos = df_abiertos[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales', 'Saldo_Hembras', 'HuevosTotales_Acumulado']]
 
 # --- 5. CARGAR PREDICCIONES --- #
 st.header("📄 Paso 2: Visualización de curvas reales y proyectadas")
@@ -68,7 +68,7 @@ else:
     reales = reales.groupby('SEMPROD', as_index=False).agg({
         'Porcentaje_HuevosTotales': 'mean',
         'Saldo_Hembras': 'mean',
-        'HuevosTotales': 'mean'
+        'HuevosTotales_Acumulado': 'mean'
     })
     pred = pred.groupby('SEMPROD', as_index=False).agg({
         'Prediccion_Porcentaje_HuevosTotales': 'mean',
@@ -113,7 +113,7 @@ fig.add_trace(go.Scatter(
     yaxis='y1'
 ))
 
-# Líneas invisibles para mostrar P5 y P95
+# Líneas invisibles para P5 y P95
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'], y=pred['P5'], mode='lines', line=dict(width=0),
     hovertemplate='Valor mínimo: %{y:.1f}<extra></extra>', showlegend=False, yaxis='y1'
@@ -145,17 +145,17 @@ if regresion is not None:
         hovertemplate='Proyección Hembras: %{y:.0f}<extra></extra>'
     ))
 
-# Huevos Totales (sin asociar a eje)
-if 'HuevosTotales' in reales.columns:
-    huevos = reales[['SEMPROD', 'HuevosTotales']].dropna()
-    if not huevos.empty:
+# Huevos Totales Acumulado (referencia visual sin eje asociado)
+if 'HuevosTotales_Acumulado' in reales.columns:
+    huevos_acum = reales[['SEMPROD', 'HuevosTotales_Acumulado']].dropna()
+    if not huevos_acum.empty:
         fig.add_trace(go.Scatter(
-            x=huevos['SEMPROD'],
-            y=huevos['HuevosTotales'],
+            x=huevos_acum['SEMPROD'],
+            y=huevos_acum['HuevosTotales_Acumulado'],
             mode='lines',
-            name='Huevos Totales',
+            name='Huevos Totales Acumulado',
             line=dict(color='darkblue', width=2),
-            hovertemplate='Huevos Totales: %{y:.0f}<extra></extra>'
+            hovertemplate='Huevos Totales Acumulado: %{y:.0f}<extra></extra>'
         ))
 
 # Layout con eje secundario
