@@ -94,24 +94,26 @@ fig.add_trace(go.Scatter(
     line=dict(color='orange')
 ))
 
-# Banda de incertidumbre (relleno) + texto en tooltip
-custom_text = [
-    f"Incertidumbre (90%)<br>Valor Mínimo: {p5:.1f}<br>Valor Máximo: {p95:.1f}"
+# Tooltip personalizado para banda de incertidumbre
+tooltip_text = [
+    f"<b>Incertidumbre (90%)</b><br>Valor Mínimo: {p5:.1f}<br>Valor Máximo: {p95:.1f}"
     for p5, p95 in zip(pred['P5'], pred['P95'])
 ]
+tooltip_text_mirror = tooltip_text[::-1]
+
+# Banda de incertidumbre (P5 - P95)
 fig.add_trace(go.Scatter(
     x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
     y=pd.concat([pred['P95'], pred['P5'][::-1]]),
     fill='toself',
     fillcolor='rgba(255,165,0,0.2)',
     line=dict(color='rgba(255,255,255,0)'),
-    text=custom_text + custom_text[::-1],
     hoverinfo='text',
-    showlegend=True,
+    text=tooltip_text + tooltip_text_mirror,
     name='Incertidumbre (90%)'
 ))
 
-# Línea de estándar (negra continua sin puntos)
+# Línea de estándar
 fig.add_trace(go.Scatter(
     x=promedio_estandar['SEMPROD'],
     y=promedio_estandar['Estandar'],
