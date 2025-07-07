@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 # --- CONFIGURACIÓN DE PÁGINA --- #
 st.set_page_config(page_title="Predicción Huevos", layout="wide")
@@ -10,20 +12,21 @@ st.markdown("""
 Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, el **promedio del estándar** histórico por semana, y el **saldo de hembras** (eje secundario).
 """)
 
-# --- 1. CARGA DEL ARCHIVO --- #
+# --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
 st.header("📥 Paso 1: Subir archivo real desde SharePoint")
 archivo_real = st.file_uploader("Sube el archivo `Libro Verde Reproductoras.xlsx`", type=["xlsx"])
+
 if archivo_real is None:
     st.warning("⚠️ Esperando que subas el archivo real desde SharePoint...")
     st.stop()
 
-# --- 2. LECTURA DE DATOS --- #
+# --- 2. LEER DATOS REALES --- #
 df = pd.read_excel(archivo_real)
 df['Estado'] = df['Estado'].astype(str).str.strip().str.capitalize()
 df = df.dropna(subset=['Estado', 'Porcentaje_HuevosTotales', 'GRANJA', 'LOTE', 'SEMPROD'])
 df['SEMPROD'] = df['SEMPROD'].astype(int)
 
-# --- 3. PROMEDIO DE ESTÁNDAR --- #
+# --- 3. PROMEDIO DEL ESTÁNDAR POR SEMPROD --- #
 df_std = df[['SEMPROD', 'Porcentaje_HuevoTotal_Estandar']].dropna()
 df_std['SEMPROD'] = df_std['SEMPROD'].astype(int)
 promedio_estandar = (
@@ -34,7 +37,7 @@ promedio_estandar = (
 semanas_1_45 = pd.DataFrame({'SEMPROD': range(1, 46)})
 promedio_estandar = semanas_1_45.merge(promedio_estandar, on='SEMPROD', how='left')
 
-# --- 4. FILTRAR ABIERTOS --- #
+# --- 4. FILTRAR LOTES ABIERTOS --- #
 df_abiertos = df[df['Estado'] == 'Abierto']
 df_abiertos = df_abiertos[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales', 'Saldo_Hembras']]
 
@@ -46,13 +49,14 @@ except FileNotFoundError:
     st.error("❌ No se encontró el archivo `predicciones_huevos.xlsx`.")
     st.stop()
 
-# --- 6. FILTROS --- #
+# --- 6. FILTROS: GRANJA + LOTE --- #
 granjas = sorted(df_pred['GRANJA'].unique())
 granja_sel = st.selectbox("Selecciona una Granja", granjas)
+
 lotes_disponibles = df_pred[df_pred['GRANJA'] == granja_sel]['LOTE'].unique()
 lote_sel = st.selectbox("Selecciona un Lote (o '-- TODOS --')", ["-- TODOS --"] + sorted(lotes_disponibles.tolist()))
 
-# --- 7. FILTRAR DATOS --- #
+# --- 7. FILTRADO DE DATOS --- #
 if lote_sel != "-- TODOS --":
     reales = df_abiertos[(df_abiertos['GRANJA'] == granja_sel) & (df_abiertos['LOTE'] == lote_sel)].copy()
     pred = df_pred[(df_pred['GRANJA'] == granja_sel) & (df_pred['LOTE'] == lote_sel)].copy()
@@ -72,28 +76,28 @@ else:
     })
     titulo = f"Granja: {granja_sel} (Promedio de todos los lotes)"
 
-# --- 8. GRAFICAR --- #
+# --- 8. REGRESIÓN LINEAL DE SALDO HEMBRAS --- #
+regresion = None
+if 'Saldo_Hembras' in reales.columns and len(reales) >= 5:
+    df_temp = reales.dropna(subset=['Saldo_Hembras'])
+    X_reg = df_temp[['SEMPROD']]
+    y_reg = df_temp['Saldo_Hembras']
+    if len(X_reg) >= 5:
+        modelo = LinearRegression().fit(X_reg, y_reg)
+        semanas_pred = np.arange(1, 46).reshape(-1, 1)
+        saldo_pred = modelo.predict(semanas_pred)
+        regresion = pd.DataFrame({'SEMPROD': semanas_pred.flatten(), 'Saldo_Hembras_Pred': saldo_pred})
+
+# --- 9. GRAFICAR --- #
 fig = go.Figure()
 
 # Curva real
-fig.add_trace(go.Scatter(
-    x=reales['SEMPROD'],
-    y=reales['Porcentaje_HuevosTotales'],
-    mode='lines+markers',
-    name='Real',
-    line=dict(color='blue'),
-    yaxis='y1'
-))
+fig.add_trace(go.Scatter(x=reales['SEMPROD'], y=reales['Porcentaje_HuevosTotales'],
+    mode='lines+markers', name='Real', line=dict(color='blue'), yaxis='y1'))
 
-# Predicción
-fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'],
-    y=pred['Prediccion_Porcentaje_HuevosTotales'],
-    mode='lines+markers',
-    name='Predicción',
-    line=dict(color='orange'),
-    yaxis='y1'
-))
+# Curva predicha
+fig.add_trace(go.Scatter(x=pred['SEMPROD'], y=pred['Prediccion_Porcentaje_HuevosTotales'],
+    mode='lines+markers', name='Predicción', line=dict(color='orange'), yaxis='y1'))
 
 # Banda de incertidumbre
 fig.add_trace(go.Scatter(
@@ -108,58 +112,45 @@ fig.add_trace(go.Scatter(
     yaxis='y1'
 ))
 
-# Líneas invisibles para mostrar P5 y P95 en tooltip
+# Líneas invisibles para mostrar P5 y P95
 fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'], y=pred['P5'], mode='lines',
-    line=dict(width=0),
-    hovertemplate='Valor mínimo: %{y:.1f}<extra></extra>',
-    showlegend=False, yaxis='y1'
+    x=pred['SEMPROD'], y=pred['P5'], mode='lines', line=dict(width=0),
+    hovertemplate='Valor mínimo: %{y:.1f}<extra></extra>', showlegend=False, yaxis='y1'
 ))
 fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'], y=pred['P95'], mode='lines',
-    line=dict(width=0),
-    hovertemplate='Valor máximo: %{y:.1f}<extra></extra>',
-    showlegend=False, yaxis='y1'
+    x=pred['SEMPROD'], y=pred['P95'], mode='lines', line=dict(width=0),
+    hovertemplate='Valor máximo: %{y:.1f}<extra></extra>', showlegend=False, yaxis='y1'
 ))
 
-# Línea del estándar
-fig.add_trace(go.Scatter(
-    x=promedio_estandar['SEMPROD'],
-    y=promedio_estandar['Estandar'],
-    mode='lines',
-    name='Estándar',
-    line=dict(color='black'),
-    hovertemplate='Estándar: %{y:.1f}<extra></extra>',
-    yaxis='y1'
-))
+# Estándar promedio
+fig.add_trace(go.Scatter(x=promedio_estandar['SEMPROD'], y=promedio_estandar['Estandar'],
+    mode='lines', name='Estándar', line=dict(color='black'),
+    hovertemplate='Estándar: %{y:.1f}<extra></extra>', yaxis='y1'))
 
-# Curva Saldo Hembras (eje secundario)
+# Saldo de hembras real
 if 'Saldo_Hembras' in reales.columns:
+    fig.add_trace(go.Scatter(x=reales['SEMPROD'], y=reales['Saldo_Hembras'],
+        mode='lines+markers', name='Saldo Hembras',
+        line=dict(color='purple', dash='dot'), yaxis='y2',
+        hovertemplate='Saldo Hembras: %{y:.0f}<extra></extra>'))
+
+# Regresión saldo hembras
+if regresion is not None:
     fig.add_trace(go.Scatter(
-        x=reales['SEMPROD'],
-        y=reales['Saldo_Hembras'],
-        mode='lines+markers',
-        name='Saldo Hembras',
-        line=dict(color='purple', dash='dot'),
+        x=regresion['SEMPROD'], y=regresion['Saldo_Hembras_Pred'],
+        mode='lines', name='Tendencia Saldo Hembras',
+        line=dict(color='magenta', dash='dash'),
         yaxis='y2',
-        hovertemplate='Saldo Hembras: %{y:.0f}<extra></extra>'
+        hovertemplate='Proyección Hembras: %{y:.0f}<extra></extra>'
     ))
 
-# Layout
+# Layout con eje secundario
 fig.update_layout(
     title=f"📊 {titulo}",
     xaxis_title="Semana Productiva",
+    yaxis=dict(title="Porcentaje de Huevos", tickformat=".1f"),
+    yaxis2=dict(title="Saldo Hembras", overlaying='y', side='right', showgrid=False),
     xaxis=dict(tickmode='linear', dtick=1),
-    yaxis=dict(
-        title="Porcentaje de Huevos",
-        tickformat=".1f"
-    ),
-    yaxis2=dict(
-        title="Saldo Hembras",
-        overlaying='y',
-        side='right',
-        showgrid=False
-    ),
     hovermode="x unified"
 )
 
