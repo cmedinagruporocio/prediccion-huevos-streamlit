@@ -9,7 +9,7 @@ st.set_page_config(page_title="Predicción Huevos", layout="wide")
 st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
-Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, el **promedio del estándar** histórico por semana, y el **saldo de hembras** (eje secundario).
+Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, el **promedio del estándar** histórico por semana, el **saldo de hembras** (eje secundario) y los **Huevos Totales** reales (como referencia visual).
 """)
 
 # --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
@@ -39,7 +39,7 @@ promedio_estandar = semanas_1_45.merge(promedio_estandar, on='SEMPROD', how='lef
 
 # --- 4. FILTRAR LOTES ABIERTOS --- #
 df_abiertos = df[df['Estado'] == 'Abierto']
-df_abiertos = df_abiertos[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales', 'Saldo_Hembras']]
+df_abiertos = df_abiertos[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales', 'Saldo_Hembras', 'HuevosTotales']]
 
 # --- 5. CARGAR PREDICCIONES --- #
 st.header("📄 Paso 2: Visualización de curvas reales y proyectadas")
@@ -67,7 +67,8 @@ else:
     pred = df_pred[df_pred['GRANJA'] == granja_sel].copy()
     reales = reales.groupby('SEMPROD', as_index=False).agg({
         'Porcentaje_HuevosTotales': 'mean',
-        'Saldo_Hembras': 'mean'
+        'Saldo_Hembras': 'mean',
+        'HuevosTotales': 'mean'
     })
     pred = pred.groupby('SEMPROD', as_index=False).agg({
         'Prediccion_Porcentaje_HuevosTotales': 'mean',
@@ -92,67 +93,72 @@ if 'Saldo_Hembras' in reales.columns and len(reales) >= 5:
 fig = go.Figure()
 
 # Curva real
-fig.add_trace(go.Scatter(
-    x=reales['SEMPROD'], y=reales['Porcentaje_HuevosTotales'],
-    mode='lines+markers', name='Real',
-    line=dict(color='blue'), yaxis='y1'
-))
+fig.add_trace(go.Scatter(x=reales['SEMPROD'], y=reales['Porcentaje_HuevosTotales'],
+    mode='lines+markers', name='Real', line=dict(color='blue'), yaxis='y1'))
 
 # Curva predicha
-fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'], y=pred['Prediccion_Porcentaje_HuevosTotales'],
-    mode='lines+markers', name='Predicción',
-    line=dict(color='orange'), yaxis='y1'
-))
+fig.add_trace(go.Scatter(x=pred['SEMPROD'], y=pred['Prediccion_Porcentaje_HuevosTotales'],
+    mode='lines+markers', name='Predicción', line=dict(color='orange'), yaxis='y1'))
 
-# Banda de incertidumbre (relleno)
+# Banda de incertidumbre
 fig.add_trace(go.Scatter(
     x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
     y=pd.concat([pred['P95'], pred['P5'][::-1]]),
-    fill='toself', fillcolor='rgba(255,165,0,0.2)',
+    fill='toself',
+    fillcolor='rgba(255,165,0,0.2)',
     line=dict(color='rgba(255,255,255,0)'),
-    hoverinfo="skip", showlegend=True,
-    name='Incertidumbre (90%)', yaxis='y1'
+    hoverinfo="skip",
+    showlegend=True,
+    name='Incertidumbre (90%)',
+    yaxis='y1'
 ))
 
-# Líneas invisibles para tooltip de incertidumbre
+# Líneas invisibles para mostrar P5 y P95
 fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'], y=pred['P5'], mode='lines',
-    line=dict(width=0), hovertemplate='Valor mínimo: %{y:.1f}<extra></extra>',
-    showlegend=False, yaxis='y1'
+    x=pred['SEMPROD'], y=pred['P5'], mode='lines', line=dict(width=0),
+    hovertemplate='Valor mínimo: %{y:.1f}<extra></extra>', showlegend=False, yaxis='y1'
 ))
 fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'], y=pred['P95'], mode='lines',
-    line=dict(width=0), hovertemplate='Valor máximo: %{y:.1f}<extra></extra>',
-    showlegend=False, yaxis='y1'
+    x=pred['SEMPROD'], y=pred['P95'], mode='lines', line=dict(width=0),
+    hovertemplate='Valor máximo: %{y:.1f}<extra></extra>', showlegend=False, yaxis='y1'
 ))
 
 # Estándar promedio
-fig.add_trace(go.Scatter(
-    x=promedio_estandar['SEMPROD'], y=promedio_estandar['Estandar'],
+fig.add_trace(go.Scatter(x=promedio_estandar['SEMPROD'], y=promedio_estandar['Estandar'],
     mode='lines', name='Estándar', line=dict(color='black'),
-    hovertemplate='Estándar: %{y:.1f}<extra></extra>', yaxis='y1'
-))
+    hovertemplate='Estándar: %{y:.1f}<extra></extra>', yaxis='y1'))
 
-# Saldo hembras real
+# Saldo de hembras real
 if 'Saldo_Hembras' in reales.columns:
-    fig.add_trace(go.Scatter(
-        x=reales['SEMPROD'], y=reales['Saldo_Hembras'],
+    fig.add_trace(go.Scatter(x=reales['SEMPROD'], y=reales['Saldo_Hembras'],
         mode='lines+markers', name='Saldo Hembras',
         line=dict(color='purple', dash='dot'), yaxis='y2',
-        hovertemplate='Saldo Hembras: %{y:.0f}<extra></extra>'
-    ))
+        hovertemplate='Saldo Hembras: %{y:.0f}<extra></extra>'))
 
 # Regresión saldo hembras
 if regresion is not None:
     fig.add_trace(go.Scatter(
         x=regresion['SEMPROD'], y=regresion['Saldo_Hembras_Pred'],
         mode='lines', name='Tendencia Saldo Hembras',
-        line=dict(color='red', dash='dash'), yaxis='y2',
+        line=dict(color='magenta', dash='dash'),
+        yaxis='y2',
         hovertemplate='Proyección Hembras: %{y:.0f}<extra></extra>'
     ))
 
-# Layout final
+# Huevos Totales (sin asociar a eje)
+if 'HuevosTotales' in reales.columns:
+    huevos = reales[['SEMPROD', 'HuevosTotales']].dropna()
+    if not huevos.empty:
+        fig.add_trace(go.Scatter(
+            x=huevos['SEMPROD'],
+            y=huevos['HuevosTotales'],
+            mode='lines',
+            name='Huevos Totales',
+            line=dict(color='darkblue', width=2),
+            hovertemplate='Huevos Totales: %{y:.0f}<extra></extra>'
+        ))
+
+# Layout con eje secundario
 fig.update_layout(
     title=f"📊 {titulo}",
     xaxis_title="Semana Productiva",
@@ -160,13 +166,7 @@ fig.update_layout(
     yaxis2=dict(title="Saldo Hembras", overlaying='y', side='right', showgrid=False),
     xaxis=dict(tickmode='linear', dtick=1),
     hovermode="x unified",
-    legend=dict(
-        x=0.01, y=0.98,
-        xanchor='left',
-        bgcolor='rgba(255,255,255,0.8)',
-        bordercolor='gray',
-        borderwidth=1
-    )
+    legend=dict(x=0.01, y=1.05, orientation='h')
 )
 
 # Mostrar gráfico
