@@ -39,7 +39,7 @@ promedio_estandar = semanas_1_45.merge(promedio_estandar, on='SEMPROD', how='lef
 
 # --- 4. FILTRAR LOTES ABIERTOS --- #
 df_abiertos = df[df['Estado'] == 'Abierto']
-df_abiertos = df_abiertos[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales', 'Saldo_Hembras']]
+df_abiertos = df_abiertos[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales', 'Saldo_Hembras', 'HuevosTotales_Acumulado']]
 
 # --- 5. CARGAR PREDICCIONES --- #
 st.header("📄 Paso 2: Visualización de curvas reales y proyectadas")
@@ -67,7 +67,8 @@ else:
     pred = df_pred[df_pred['GRANJA'] == granja_sel].copy()
     reales = reales.groupby('SEMPROD', as_index=False).agg({
         'Porcentaje_HuevosTotales': 'mean',
-        'Saldo_Hembras': 'mean'
+        'Saldo_Hembras': 'mean',
+        'HuevosTotales_Acumulado': 'sum'
     })
     pred = pred.groupby('SEMPROD', as_index=False).agg({
         'Prediccion_Porcentaje_HuevosTotales': 'mean',
@@ -150,6 +151,18 @@ if regresion is not None:
         mode='lines', name='Tendencia Saldo Hembras',
         line=dict(color='magenta', dash='dash'), yaxis='y2',
         hovertemplate='Proyección Hembras: %{y:.0f}<extra></extra>'
+    ))
+
+# HuevosTotales_Acumulado como línea verde con etiquetas
+if 'HuevosTotales_Acumulado' in reales.columns:
+    fig.add_trace(go.Scatter(
+        x=reales['SEMPROD'], y=reales['HuevosTotales_Acumulado'],
+        mode='lines+markers+text', name='Huevos Acumulados',
+        line=dict(color='green', width=2),
+        text=reales['HuevosTotales_Acumulado'].apply(lambda x: f"{int(x):,}"),
+        textposition='top center',
+        hovertemplate='Huevos Acumulados: %{y:,}<extra></extra>',
+        yaxis='y'
     ))
 
 # Layout final
