@@ -7,7 +7,7 @@ st.set_page_config(page_title="Predicción Huevos", layout="wide")
 st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
-Esta aplicación permite visualizar la curva **real**, la **curva proyectada** y la **banda de incertidumbre (P5-P95)**, junto con el **promedio del estándar** histórico por semana.
+Esta aplicación permite visualizar la curva **real**, la **curva proyectada** y la **banda de incertidumbre (P5–P95)**, junto con el **promedio del estándar** histórico por semana.
 """)
 
 # --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
@@ -65,42 +65,51 @@ fig = go.Figure()
 
 # Línea de datos reales
 fig.add_trace(go.Scatter(
-    x=reales['SEMPROD'], y=reales['Porcentaje_HuevosTotales'],
-    mode='lines+markers', name='Real', line=dict(color='blue')
+    x=reales['SEMPROD'], 
+    y=reales['Porcentaje_HuevosTotales'],
+    mode='lines+markers', 
+    name='Real', 
+    line=dict(color='blue')
 ))
 
 # Línea de predicción
 fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'], y=pred['Prediccion_Porcentaje_HuevosTotales'],
-    mode='lines+markers', name='Predicción', line=dict(color='orange')
+    x=pred['SEMPROD'], 
+    y=pred['Prediccion_Porcentaje_HuevosTotales'],
+    mode='lines+markers', 
+    name='Predicción', 
+    line=dict(color='orange')
 ))
 
-# Banda de incertidumbre con texto en hover
+# Banda de incertidumbre (P5–P95) con tooltip personalizado
 fig.add_trace(go.Scatter(
     x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
     y=pd.concat([pred['P95'], pred['P5'][::-1]]),
     fill='toself',
     fillcolor='rgba(255,165,0,0.2)',
     line=dict(color='rgba(255,255,255,0)'),
-    hoverinfo="text",
-    text=pd.concat([
-        pred.apply(lambda row: f"Incertidumbre: mín={row['P5']:.1f}, máx={row['P95']:.1f}", axis=1),
-        pred.apply(lambda row: f"Incertidumbre: mín={row['P5']:.1f}, máx={row['P95']:.1f}", axis=1)[::-1]
-    ]),
-    name='Incertidumbre (P5-P95)',
-    showlegend=True
+    name='Incertidumbre (P5–P95)',
+    hoverinfo='text',
+    showlegend=True,
+    text=[
+        f"Incertidumbre ({round(p5,1)}–{round(p95,1)})"
+        for p5, p95 in zip(pred['P5'], pred['P95'])
+    ] + [
+        f"Incertidumbre ({round(p5,1)}–{round(p95,1)})"
+        for p5, p95 in zip(pred['P5'][::-1], pred['P95'][::-1])
+    ]
 ))
 
 # Línea del estándar promedio (línea negra continua sin markers)
 fig.add_trace(go.Scatter(
     x=promedio_estandar['SEMPROD'],
     y=promedio_estandar['Estandar'],
-    mode='lines',  # <-- solo líneas, sin markers
+    mode='lines',
     name='Estándar Promedio',
-    line=dict(color='black')  # <-- línea negra continua
+    line=dict(color='black')
 ))
 
-
+# Layout
 fig.update_layout(
     title=f"📊 Granja: {granja_sel} | Lote: {lote_sel}",
     xaxis_title="Semana Productiva",
