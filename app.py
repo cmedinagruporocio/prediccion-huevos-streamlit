@@ -132,7 +132,8 @@ fig.update_layout(
     xaxis_title="Semana Productiva",
     yaxis_title="Porcentaje de Huevos",
     xaxis=dict(tickmode='linear', dtick=1),
-    hovermode="x unified"
+    hovermode="closest"  # Cambiado para que se vean los tooltips personalizados
 )
+
 
 st.plotly_chart(fig, use_container_width=True)
