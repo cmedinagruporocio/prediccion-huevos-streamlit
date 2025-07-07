@@ -91,12 +91,15 @@ fig.add_trace(go.Scatter(
     showlegend=True
 ))
 
-# Línea del estándar promedio (color negro)
+# Línea del estándar promedio (línea negra continua sin markers)
 fig.add_trace(go.Scatter(
-    x=promedio_estandar['SEMPROD'], y=promedio_estandar['Estandar'],
-    mode='lines+markers', name='Estándar Promedio',
-    line=dict(color='black', dash='dash')
+    x=promedio_estandar['SEMPROD'],
+    y=promedio_estandar['Estandar'],
+    mode='lines',  # <-- solo líneas, sin markers
+    name='Estándar Promedio',
+    line=dict(color='black')  # <-- línea negra continua
 ))
+
 
 fig.update_layout(
     title=f"📊 Granja: {granja_sel} | Lote: {lote_sel}",
