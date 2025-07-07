@@ -7,7 +7,7 @@ st.set_page_config(page_title="Predicción Huevos", layout="wide")
 st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
-Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (P5–P95)**, y el **promedio del estándar** histórico por semana.
+Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, y el **promedio del estándar** histórico por semana.
 """)
 
 # --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
@@ -76,7 +76,7 @@ else:
 # --- 8. GRAFICAR --- #
 fig = go.Figure()
 
-# Curva real
+# Línea real
 fig.add_trace(go.Scatter(
     x=reales['SEMPROD'],
     y=reales['Porcentaje_HuevosTotales'],
@@ -85,7 +85,7 @@ fig.add_trace(go.Scatter(
     line=dict(color='blue')
 ))
 
-# Curva predicha
+# Línea de predicción
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'],
     y=pred['Prediccion_Porcentaje_HuevosTotales'],
@@ -94,38 +94,24 @@ fig.add_trace(go.Scatter(
     line=dict(color='orange')
 ))
 
-# Banda de incertidumbre (relleno entre P5 y P95)
+# Banda de incertidumbre (relleno) + texto en tooltip
+custom_text = [
+    f"Incertidumbre (90%)<br>Valor Mínimo: {p5:.1f}<br>Valor Máximo: {p95:.1f}"
+    for p5, p95 in zip(pred['P5'], pred['P95'])
+]
 fig.add_trace(go.Scatter(
     x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
     y=pd.concat([pred['P95'], pred['P5'][::-1]]),
     fill='toself',
     fillcolor='rgba(255,165,0,0.2)',
     line=dict(color='rgba(255,255,255,0)'),
-    hoverinfo="skip",
+    text=custom_text + custom_text[::-1],
+    hoverinfo='text',
     showlegend=True,
-    name='Incertidumbre (P5–P95)'
+    name='Incertidumbre (90%)'
 ))
 
-# Líneas invisibles para mostrar P5 y P95 en tooltip
-fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'],
-    y=pred['P5'],
-    mode='lines',
-    line=dict(width=0),
-    hovertemplate='P5: %{y:.1f}<extra></extra>',
-    showlegend=False
-))
-
-fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'],
-    y=pred['P95'],
-    mode='lines',
-    line=dict(width=0),
-    hovertemplate='P95: %{y:.1f}<extra></extra>',
-    showlegend=False
-))
-
-# Línea de estándar promedio
+# Línea de estándar (negra continua sin puntos)
 fig.add_trace(go.Scatter(
     x=promedio_estandar['SEMPROD'],
     y=promedio_estandar['Estandar'],
