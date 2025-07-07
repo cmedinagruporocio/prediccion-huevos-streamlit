@@ -38,7 +38,8 @@ except FileNotFoundError:
 # --- 4. PROMEDIO ESTÁNDAR POR SEMANA --- #
 df_estandar = df_reales[['SEMPROD', 'Porcentaje_HuevoTotal_Estandar']].dropna()
 promedio_estandar = df_estandar.groupby('SEMPROD')['Porcentaje_HuevoTotal_Estandar'].mean().reset_index()
-promedio_estandar = promedio_estandar[promedio_estandar['SEMPROD'] <= 45]
+promedio_estandar = promedio_estandar[promedio_estandar['SEMPROD'].astype(int) <= 45]
+
 
 # --- 5. SELECCIÓN DE GRANJA + LOTE --- #
 st.header("📄 Paso 2: Visualización de curvas")
