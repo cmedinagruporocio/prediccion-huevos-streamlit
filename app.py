@@ -104,10 +104,12 @@ fig.add_trace(go.Scatter(
     hoverinfo="text",
     showlegend=True,
     name='Incertidumbre (P5–P95)',
-    text=pd.concat([
-        [f"Incertidumbre ({p5:.1f}–{p95:.1f})" for p5, p95 in zip(pred['P5'], pred['P95'])],
-        [f"Incertidumbre ({p5:.1f}–{p95:.1f})" for p5, p95 in zip(pred['P5'][::-1], pred['P95'][::-1])]
-    ])
+   text=[
+    f"Incertidumbre ({p5:.1f}–{p95:.1f})" for p5, p95 in zip(pred['P5'], pred['P95'])
+] + [
+    f"Incertidumbre ({p5:.1f}–{p95:.1f})" for p5, p95 in zip(pred['P5'][::-1], pred['P95'][::-1])
+]
+
 ))
 
 # Línea del estándar promedio (negra continua sin markers)
