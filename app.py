@@ -49,7 +49,7 @@ except FileNotFoundError:
     st.error("❌ No se encontró el archivo `predicciones_huevos.xlsx`.")
     st.stop()
 
-# --- 6. FILTROS: GRANAJA + LOTE --- #
+# --- 6. FILTROS: GRANJA + LOTE --- #
 granjas = sorted(df_pred['GRANJA'].unique())
 granja_sel = st.selectbox("Selecciona una Granja", granjas)
 
@@ -76,7 +76,7 @@ else:
 # --- 8. GRAFICAR --- #
 fig = go.Figure()
 
-# Datos reales
+# Curva real
 fig.add_trace(go.Scatter(
     x=reales['SEMPROD'],
     y=reales['Porcentaje_HuevosTotales'],
@@ -85,7 +85,7 @@ fig.add_trace(go.Scatter(
     line=dict(color='blue')
 ))
 
-# Curva proyectada
+# Curva predicha
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'],
     y=pred['Prediccion_Porcentaje_HuevosTotales'],
@@ -94,30 +94,38 @@ fig.add_trace(go.Scatter(
     line=dict(color='orange')
 ))
 
-# Banda de incertidumbre con tooltip personalizado dinámico
-x_vals = pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]])
-y_vals = pd.concat([pred['P95'], pred['P5'][::-1]])
-
-tooltip_text = [
-    f"Incertidumbre ({p5:.1f}–{p95:.1f})" for p5, p95 in zip(pred['P5'], pred['P95'])
-]
-tooltip_text = tooltip_text + tooltip_text[::-1]  # duplicado invertido para cerrar el polígono
-
+# Banda de incertidumbre (relleno entre P5 y P95)
 fig.add_trace(go.Scatter(
-    x=x_vals,
-    y=y_vals,
+    x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
+    y=pd.concat([pred['P95'], pred['P5'][::-1]]),
     fill='toself',
     fillcolor='rgba(255,165,0,0.2)',
     line=dict(color='rgba(255,255,255,0)'),
-    mode='lines',
-    hoverinfo="text",
-    text=tooltip_text,
+    hoverinfo="skip",
     showlegend=True,
     name='Incertidumbre (P5–P95)'
 ))
 
+# Líneas invisibles para mostrar P5 y P95 en tooltip
+fig.add_trace(go.Scatter(
+    x=pred['SEMPROD'],
+    y=pred['P5'],
+    mode='lines',
+    line=dict(width=0),
+    hovertemplate='P5: %{y:.1f}<extra></extra>',
+    showlegend=False
+))
 
-# Línea del estándar (negra continua sin markers, con tooltip personalizado)
+fig.add_trace(go.Scatter(
+    x=pred['SEMPROD'],
+    y=pred['P95'],
+    mode='lines',
+    line=dict(width=0),
+    hovertemplate='P95: %{y:.1f}<extra></extra>',
+    showlegend=False
+))
+
+# Línea de estándar promedio
 fig.add_trace(go.Scatter(
     x=promedio_estandar['SEMPROD'],
     y=promedio_estandar['Estandar'],
@@ -132,8 +140,7 @@ fig.update_layout(
     xaxis_title="Semana Productiva",
     yaxis_title="Porcentaje de Huevos",
     xaxis=dict(tickmode='linear', dtick=1),
-    hovermode="closest"  # Cambiado para que se vean los tooltips personalizados
+    hovermode="x unified"
 )
-
 
 st.plotly_chart(fig, use_container_width=True)
