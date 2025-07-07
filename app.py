@@ -7,7 +7,7 @@ st.set_page_config(page_title="Predicción Huevos", layout="wide")
 st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
-Esta aplicación permite visualizar la curva **real**, la **curva proyectada** y la **banda de incertidumbre (P25-P75)**, junto con el **promedio del estándar** histórico por semana.
+Esta aplicación permite visualizar la curva **real**, la **curva proyectada** y la **banda de incertidumbre (P5-P95)**, junto con el **promedio del estándar** histórico por semana.
 """)
 
 # --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
@@ -34,7 +34,7 @@ promedio_estandar = (
     .rename(columns={'Porcentaje_HuevoTotal_Estandar': 'Estandar'})
 )
 
-# Asegurar que estén las semanas 1 a 45
+# Asegurar semanas 1 a 45
 semanas_1_45 = pd.DataFrame({'SEMPROD': range(1, 46)})
 promedio_estandar = semanas_1_45.merge(promedio_estandar, on='SEMPROD', how='left')
 
@@ -64,28 +64,39 @@ pred = df_pred[(df_pred['GRANJA'] == granja_sel) & (df_pred['LOTE'] == lote_sel)
 fig = go.Figure()
 
 # Línea de datos reales
-fig.add_trace(go.Scatter(x=reales['SEMPROD'], y=reales['Porcentaje_HuevosTotales'],
-                         mode='lines+markers', name='Real', line=dict(color='blue')))
+fig.add_trace(go.Scatter(
+    x=reales['SEMPROD'], y=reales['Porcentaje_HuevosTotales'],
+    mode='lines+markers', name='Real', line=dict(color='blue')
+))
 
 # Línea de predicción
-fig.add_trace(go.Scatter(x=pred['SEMPROD'], y=pred['Prediccion_Porcentaje_HuevosTotales'],
-                         mode='lines+markers', name='Predicción', line=dict(color='orange')))
+fig.add_trace(go.Scatter(
+    x=pred['SEMPROD'], y=pred['Prediccion_Porcentaje_HuevosTotales'],
+    mode='lines+markers', name='Predicción', line=dict(color='orange')
+))
 
-# Banda de incertidumbre
+# Banda de incertidumbre con texto en hover
 fig.add_trace(go.Scatter(
     x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
     y=pd.concat([pred['P95'], pred['P5'][::-1]]),
     fill='toself',
     fillcolor='rgba(255,165,0,0.2)',
     line=dict(color='rgba(255,255,255,0)'),
-    hoverinfo="skip",
-    showlegend=True,
-    name='Incertidumbre (P5-P95)'
+    hoverinfo="text",
+    text=pd.concat([
+        pred.apply(lambda row: f"Incertidumbre: mín={row['P5']:.1f}, máx={row['P95']:.1f}", axis=1),
+        pred.apply(lambda row: f"Incertidumbre: mín={row['P5']:.1f}, máx={row['P95']:.1f}", axis=1)[::-1]
+    ]),
+    name='Incertidumbre (P5-P95)',
+    showlegend=True
 ))
 
-# Línea del estándar promedio
-fig.add_trace(go.Scatter(x=promedio_estandar['SEMPROD'], y=promedio_estandar['Estandar'],
-                         mode='lines+markers', name='Estándar Promedio', line=dict(color='green', dash='dash')))
+# Línea del estándar promedio (color negro)
+fig.add_trace(go.Scatter(
+    x=promedio_estandar['SEMPROD'], y=promedio_estandar['Estandar'],
+    mode='lines+markers', name='Estándar Promedio',
+    line=dict(color='black', dash='dash')
+))
 
 fig.update_layout(
     title=f"📊 Granja: {granja_sel} | Lote: {lote_sel}",
