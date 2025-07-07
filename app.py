@@ -8,8 +8,8 @@ st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
 Esta aplicación permite visualizar la curva **real** (según datos subidos manualmente), 
-la **curva proyectada** (generada mediante modelo híbrido con ML) y la **línea estándar** 
-de referencia para cada lote.
+la **curva proyectada** (generada mediante modelo híbrido con ML) y la **curva estándar** 
+semanal de cada lote.
 """)
 
 # --- 1. CARGA DEL ARCHIVO REAL --- #
@@ -23,16 +23,17 @@ if archivo_real is None:
 
 # --- 2. LEER ARCHIVO REAL --- #
 df_reales = pd.read_excel(archivo_real)
-df_reales = df_reales[df_reales['Estado'].str.strip().str.capitalize() == 'Abierto']
+df_reales['Estado'] = df_reales['Estado'].astype(str).str.strip().str.capitalize()
+df_reales = df_reales[df_reales['Estado'] == 'Abierto']
 df_reales = df_reales[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales', 'Porcentaje_HuevoTotal_Estandar']]
 
 # --- 3. CARGA DEL ARCHIVO DE PREDICCIONES --- #
-st.header("📄 Paso 2: Visualización de curvas reales y proyectadas")
+st.header("📄 Paso 2: Visualización de curvas reales, proyectadas y estándar")
 
 try:
     df_pred = pd.read_excel("predicciones_huevos.xlsx")
 except FileNotFoundError:
-    st.error("❌ No se encontró el archivo `predicciones_huevos.xlsx` en la carpeta.")
+    st.error("❌ No se encontró el archivo `predicciones_huevos.xlsx`.")
     st.stop()
 
 # --- 4. SELECCIÓN DE GRANJA + LOTE --- #
@@ -54,16 +55,12 @@ reales_plot['Tipo'] = 'Real'
 pred_plot = pred[['SEMPROD', 'Prediccion_Porcentaje_HuevosTotales']].rename(columns={'Prediccion_Porcentaje_HuevosTotales': 'Valor'})
 pred_plot['Tipo'] = 'Predicción'
 
-# Línea estándar
-estandar_valor = reales['Porcentaje_HuevoTotal_Estandar'].iloc[0]
-df_estandar = pd.DataFrame({
-    'SEMPROD': pred['SEMPROD'],
-    'Valor': estandar_valor,
-    'Tipo': 'Estándar'
-})
+# Curva estándar semanal
+estandar_plot = reales[['SEMPROD', 'Porcentaje_HuevoTotal_Estandar']].rename(columns={'Porcentaje_HuevoTotal_Estandar': 'Valor'})
+estandar_plot['Tipo'] = 'Estándar'
 
-# Concatenar todo para graficar
-df_plot = pd.concat([reales_plot, pred_plot, df_estandar], ignore_index=True)
+# Concatenar curvas
+df_plot = pd.concat([reales_plot, pred_plot, estandar_plot], ignore_index=True)
 
 # --- 6. GRÁFICO --- #
 fig = px.line(
