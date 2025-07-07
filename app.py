@@ -7,93 +7,92 @@ st.set_page_config(page_title="Predicción Huevos", layout="wide")
 st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
-Esta aplicación permite visualizar:
-- La curva **real** (datos registrados manualmente).
-- La curva **proyectada** (modelo híbrido).
-- El rango de **incertidumbre** (P5 a P95).
-- La curva **estándar promedio** por semana productiva (SEMPROD).
+Esta aplicación permite visualizar la curva **real**, la **curva proyectada** y la **banda de incertidumbre (P25-P75)**, junto con el **promedio del estándar** histórico por semana.
 """)
 
-# --- 1. SUBIR ARCHIVO REAL --- #
+# --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
 st.header("📥 Paso 1: Subir archivo real desde SharePoint")
-
 archivo_real = st.file_uploader("Sube el archivo `Libro Verde Reproductoras.xlsx`", type=["xlsx"])
 
 if archivo_real is None:
     st.warning("⚠️ Esperando que subas el archivo real desde SharePoint...")
     st.stop()
 
-# --- 2. LEER DATOS --- #
-df_reales = pd.read_excel(archivo_real)
-df_reales['Estado'] = df_reales['Estado'].astype(str).str.strip().str.capitalize()
-df_reales = df_reales[df_reales['Estado'] == 'Abierto']
+# --- 2. LEER DATOS REALES --- #
+df = pd.read_excel(archivo_real)
+df['Estado'] = df['Estado'].astype(str).str.strip().str.capitalize()
+df = df.dropna(subset=['Estado', 'Porcentaje_HuevosTotales', 'GRANJA', 'LOTE', 'SEMPROD'])
+df['SEMPROD'] = df['SEMPROD'].astype(int)
 
-# --- 3. LEER PREDICCIONES --- #
+# --- 3. GENERAR ESTÁNDAR PROMEDIO POR SEMANA (SEM PROD 1-45) --- #
+df_std = df[['SEMPROD', 'Porcentaje_HuevoTotal_Estandar']].dropna()
+df_std['SEMPROD'] = df_std['SEMPROD'].astype(int)
+
+promedio_estandar = (
+    df_std.groupby('SEMPROD', as_index=False)
+    .agg({'Porcentaje_HuevoTotal_Estandar': 'mean'})
+    .rename(columns={'Porcentaje_HuevoTotal_Estandar': 'Estandar'})
+)
+
+# Asegurar que estén las semanas 1 a 45
+semanas_1_45 = pd.DataFrame({'SEMPROD': range(1, 46)})
+promedio_estandar = semanas_1_45.merge(promedio_estandar, on='SEMPROD', how='left')
+
+# --- 4. FILTRAR DATOS ABIERTOS --- #
+df_abiertos = df[df['Estado'] == 'Abierto']
+df_abiertos = df_abiertos[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales']]
+
+# --- 5. CARGAR PREDICCIONES --- #
+st.header("📄 Paso 2: Visualización de curvas reales y proyectadas")
 try:
     df_pred = pd.read_excel("predicciones_huevos.xlsx")
 except FileNotFoundError:
     st.error("❌ No se encontró el archivo `predicciones_huevos.xlsx`.")
     st.stop()
 
-# --- 4. PROMEDIO ESTÁNDAR POR SEMANA --- #
-df_estandar = df_reales[['SEMPROD', 'Porcentaje_HuevoTotal_Estandar']].dropna()
-promedio_estandar = df_estandar.groupby('SEMPROD')['Porcentaje_HuevoTotal_Estandar'].mean().reset_index()
-# Asegurar que SEMPROD esté de 1 a 45 y mergear
-semanas_completas = pd.DataFrame({'SEMPROD': range(1, 46)})
-promedio_estandar = semanas_completas.merge(
-    promedio_estandar, on='SEMPROD', how='left'
-)
-
-# --- 5. SELECCIÓN DE GRANJA + LOTE --- #
-st.header("📄 Paso 2: Visualización de curvas")
-
+# --- 6. SELECCIÓN DE GRANJA + LOTE --- #
 granjas_lotes = df_pred[['GRANJA', 'LOTE']].drop_duplicates()
 granjas_lotes['ID'] = granjas_lotes['GRANJA'] + " - " + granjas_lotes['LOTE']
 opcion = st.selectbox("Selecciona una Granja + Lote", granjas_lotes['ID'].sort_values())
 granja_sel, lote_sel = opcion.split(" - ")
 
-# --- 6. FILTRAR DATOS --- #
-reales = df_reales[(df_reales['GRANJA'] == granja_sel) & (df_reales['LOTE'] == lote_sel)]
-pred = df_pred[(df_pred['GRANJA'] == granja_sel) & (df_pred['LOTE'] == lote_sel)]
+# --- 7. FILTRAR DATOS SELECCIONADOS --- #
+reales = df_abiertos[(df_abiertos['GRANJA'] == granja_sel) & (df_abiertos['LOTE'] == lote_sel)].copy()
+pred = df_pred[(df_pred['GRANJA'] == granja_sel) & (df_pred['LOTE'] == lote_sel)].copy()
 
-# --- 7. GRÁFICO --- #
+# --- 8. GRAFICAR --- #
 fig = go.Figure()
 
-# Curva real
+# Línea de datos reales
+fig.add_trace(go.Scatter(x=reales['SEMPROD'], y=reales['Porcentaje_HuevosTotales'],
+                         mode='lines+markers', name='Real', line=dict(color='blue')))
+
+# Línea de predicción
+fig.add_trace(go.Scatter(x=pred['SEMPROD'], y=pred['Prediccion_Porcentaje_HuevosTotales'],
+                         mode='lines+markers', name='Predicción', line=dict(color='orange')))
+
+# Banda de incertidumbre
 fig.add_trace(go.Scatter(
-    x=reales['SEMPROD'], y=reales['Porcentaje_HuevosTotales'],
-    mode='lines+markers', name='Real', line=dict(color='blue')
+    x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
+    y=pd.concat([pred['P95'], pred['P5'][::-1]]),
+    fill='toself',
+    fillcolor='rgba(255,165,0,0.2)',
+    line=dict(color='rgba(255,255,255,0)'),
+    hoverinfo="skip",
+    showlegend=True,
+    name='Incertidumbre (P5-P95)'
 ))
 
-# Curva predicción
-fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'], y=pred['Prediccion_Porcentaje_HuevosTotales'],
-    mode='lines+markers', name='Predicción', line=dict(color='orange')
-))
-
-# Área de incertidumbre
-fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'], y=pred['P95'],
-    mode='lines', name='P95', line=dict(width=0), showlegend=False
-))
-fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'], y=pred['P5'],
-    mode='lines', line=dict(width=0), fill='tonexty',
-    fillcolor='rgba(255,165,0,0.2)', showlegend=True, name='Incertidumbre'
-))
-
-# Curva estándar promedio
-fig.add_trace(go.Scatter(
-    x=promedio_estandar['SEMPROD'], y=promedio_estandar['Porcentaje_HuevoTotal_Estandar'],
-    mode='lines+markers', name='Estándar promedio', line=dict(color='green', dash='dash')
-))
+# Línea del estándar promedio
+fig.add_trace(go.Scatter(x=promedio_estandar['SEMPROD'], y=promedio_estandar['Estandar'],
+                         mode='lines+markers', name='Estándar Promedio', line=dict(color='green', dash='dash')))
 
 fig.update_layout(
     title=f"📊 Granja: {granja_sel} | Lote: {lote_sel}",
-    xaxis_title="Semana Productiva (SEMPROD)",
+    xaxis_title="Semana Productiva",
     yaxis_title="Porcentaje de Huevos",
-    legend_title="Tipo de curva",
-    template="plotly_white"
+    xaxis=dict(tickmode='linear', dtick=1),
+    hovermode="x unified"
 )
 
 st.plotly_chart(fig, use_container_width=True)
