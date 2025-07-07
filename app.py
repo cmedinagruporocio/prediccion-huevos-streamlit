@@ -7,7 +7,7 @@ st.set_page_config(page_title="Predicción Huevos", layout="wide")
 st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
-Esta aplicación permite visualizar la curva **real**, la **proyección**, la **incertidumbre (P5-P95)** y el **estándar histórico promedio** por semana.
+Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (P5–P95)**, y el **promedio del estándar** histórico por semana.
 """)
 
 # --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
@@ -24,7 +24,7 @@ df['Estado'] = df['Estado'].astype(str).str.strip().str.capitalize()
 df = df.dropna(subset=['Estado', 'Porcentaje_HuevosTotales', 'GRANJA', 'LOTE', 'SEMPROD'])
 df['SEMPROD'] = df['SEMPROD'].astype(int)
 
-# --- 3. GENERAR ESTÁNDAR PROMEDIO POR SEMANA (SEM PROD 1-45) --- #
+# --- 3. PROMEDIO DEL ESTÁNDAR POR SEMPROD --- #
 df_std = df[['SEMPROD', 'Porcentaje_HuevoTotal_Estandar']].dropna()
 df_std['SEMPROD'] = df_std['SEMPROD'].astype(int)
 
@@ -34,11 +34,10 @@ promedio_estandar = (
     .rename(columns={'Porcentaje_HuevoTotal_Estandar': 'Estandar'})
 )
 
-# Asegurar que estén las semanas 1 a 45
 semanas_1_45 = pd.DataFrame({'SEMPROD': range(1, 46)})
 promedio_estandar = semanas_1_45.merge(promedio_estandar, on='SEMPROD', how='left')
 
-# --- 4. FILTRAR DATOS ABIERTOS --- #
+# --- 4. FILTRAR LOTES ABIERTOS --- #
 df_abiertos = df[df['Estado'] == 'Abierto']
 df_abiertos = df_abiertos[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales']]
 
@@ -50,33 +49,52 @@ except FileNotFoundError:
     st.error("❌ No se encontró el archivo `predicciones_huevos.xlsx`.")
     st.stop()
 
-# --- 6. FILTROS ANIDADOS: PRIMERO GRANJA, LUEGO LOTE --- #
+# --- 6. FILTROS: GRANAJA + LOTE --- #
 granjas = sorted(df_pred['GRANJA'].unique())
 granja_sel = st.selectbox("Selecciona una Granja", granjas)
 
-lotes_disponibles = sorted(df_pred[df_pred['GRANJA'] == granja_sel]['LOTE'].unique())
-lote_sel = st.selectbox("Selecciona un Lote", lotes_disponibles)
+lotes_disponibles = df_pred[df_pred['GRANJA'] == granja_sel]['LOTE'].unique()
+lote_sel = st.selectbox("Selecciona un Lote (o '-- TODOS --')", ["-- TODOS --"] + sorted(lotes_disponibles.tolist()))
 
-# --- 7. FILTRAR DATOS SELECCIONADOS --- #
-reales = df_abiertos[(df_abiertos['GRANJA'] == granja_sel) & (df_abiertos['LOTE'] == lote_sel)].copy()
-pred = df_pred[(df_pred['GRANJA'] == granja_sel) & (df_pred['LOTE'] == lote_sel)].copy()
+# --- 7. FILTRADO DE DATOS --- #
+if lote_sel != "-- TODOS --":
+    reales = df_abiertos[(df_abiertos['GRANJA'] == granja_sel) & (df_abiertos['LOTE'] == lote_sel)].copy()
+    pred = df_pred[(df_pred['GRANJA'] == granja_sel) & (df_pred['LOTE'] == lote_sel)].copy()
+    titulo = f"Granja: {granja_sel} | Lote: {lote_sel}"
+else:
+    st.info(f"Mostrando el promedio general de todos los lotes de la granja **{granja_sel}**.")
+    reales = df_abiertos[df_abiertos['GRANJA'] == granja_sel].copy()
+    pred = df_pred[df_pred['GRANJA'] == granja_sel].copy()
+    reales = reales.groupby('SEMPROD', as_index=False).agg({'Porcentaje_HuevosTotales': 'mean'})
+    pred = pred.groupby('SEMPROD', as_index=False).agg({
+        'Prediccion_Porcentaje_HuevosTotales': 'mean',
+        'P5': 'mean',
+        'P95': 'mean'
+    })
+    titulo = f"Granja: {granja_sel} (Promedio de todos los lotes)"
 
 # --- 8. GRAFICAR --- #
 fig = go.Figure()
 
-# Línea de datos reales
+# Datos reales
 fig.add_trace(go.Scatter(
-    x=reales['SEMPROD'], y=reales['Porcentaje_HuevosTotales'],
-    mode='lines+markers', name='Real', line=dict(color='blue')
+    x=reales['SEMPROD'],
+    y=reales['Porcentaje_HuevosTotales'],
+    mode='lines+markers',
+    name='Real',
+    line=dict(color='blue')
 ))
 
-# Línea de predicción
+# Curva proyectada
 fig.add_trace(go.Scatter(
-    x=pred['SEMPROD'], y=pred['Prediccion_Porcentaje_HuevosTotales'],
-    mode='lines+markers', name='Predicción', line=dict(color='orange')
+    x=pred['SEMPROD'],
+    y=pred['Prediccion_Porcentaje_HuevosTotales'],
+    mode='lines+markers',
+    name='Predicción',
+    line=dict(color='orange')
 ))
 
-# Banda de incertidumbre con valores reales en el tooltip
+# Banda de incertidumbre con tooltip personalizado
 tooltip_text = [
     f"Incertidumbre ({p5:.1f}–{p95:.1f})" for p5, p95 in zip(pred['P5'], pred['P95'])
 ] + [
@@ -95,17 +113,18 @@ fig.add_trace(go.Scatter(
     name='Incertidumbre (P5–P95)'
 ))
 
-# Línea del estándar promedio (línea negra continua sin markers)
+# Línea del estándar (negra continua sin markers, con tooltip personalizado)
 fig.add_trace(go.Scatter(
     x=promedio_estandar['SEMPROD'],
     y=promedio_estandar['Estandar'],
     mode='lines',
     name='Estándar',
-    line=dict(color='black')
+    line=dict(color='black'),
+    hovertemplate='Estándar: %{y:.1f}<extra></extra>'
 ))
 
 fig.update_layout(
-    title=f"📊 Granja: {granja_sel} | Lote: {lote_sel}",
+    title=f"📊 {titulo}",
     xaxis_title="Semana Productiva",
     yaxis_title="Porcentaje de Huevos",
     xaxis=dict(tickmode='linear', dtick=1),
