@@ -74,7 +74,7 @@ fig.add_trace(go.Scatter(
 ))
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'], y=pred['P5'],
-    mode='lines', name='P5', line=dict(width=0), fill='tonexty',
+    mode='lines', line=dict(width=0), fill='tonexty',
     fillcolor='rgba(255,165,0,0.2)', showlegend=True, name='Incertidumbre'
 ))
 
