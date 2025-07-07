@@ -108,10 +108,11 @@ fig.add_trace(go.Scatter(
     fill='toself',
     fillcolor='rgba(255,165,0,0.2)',
     line=dict(color='rgba(255,255,255,0)'),
-    hoverinfo='text',
+    name='Incertidumbre (90%)',
     text=tooltip_text + tooltip_text_mirror,
-    name='Incertidumbre (90%)'
+    hovertemplate='%{text}<extra></extra>'
 ))
+
 
 # Línea de estándar
 fig.add_trace(go.Scatter(
