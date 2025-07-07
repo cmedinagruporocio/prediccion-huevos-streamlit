@@ -69,17 +69,17 @@ fig.add_trace(go.Scatter(
 # Banda de incertidumbre
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'],
-    y=pred['P75'],
+    y=pred['P95'],
     mode='lines',
-    name='P75 (límite superior)',
+    name='P95 (límite superior)',
     line=dict(width=0),
     showlegend=False
 ))
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'],
-    y=pred['P25'],
+    y=pred['P5'],
     mode='lines',
-    name='P25 (límite inferior)',
+    name='P5 (límite inferior)',
     fill='tonexty',
     fillcolor='rgba(255,165,0,0.2)',
     line=dict(width=0),
