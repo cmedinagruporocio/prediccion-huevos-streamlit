@@ -9,8 +9,7 @@ st.set_page_config(page_title="Predicción Huevos", layout="wide")
 st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
-Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, el **promedio del estándar** histórico por semana, y el **saldo de hembras** (eje secundario).  
-Además, se visualiza la curva acumulada de huevos (sin alterar ninguna escala).
+Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, el **promedio del estándar** histórico por semana, y el **saldo de hembras** (eje secundario).
 """)
 
 # --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
@@ -120,12 +119,12 @@ fig.add_trace(go.Scatter(
 # Líneas invisibles para tooltip de incertidumbre
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'], y=pred['P5'], mode='lines',
-    line=dict(width=0), hovertemplate='Mín: %{y:.1f}<extra></extra>',
+    line=dict(width=0), hovertemplate='Valor mínimo: %{y:.1f}<extra></extra>',
     showlegend=False, yaxis='y1'
 ))
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'], y=pred['P95'], mode='lines',
-    line=dict(width=0), hovertemplate='Máx: %{y:.1f}<extra></extra>',
+    line=dict(width=0), hovertemplate='Valor máximo: %{y:.1f}<extra></extra>',
     showlegend=False, yaxis='y1'
 ))
 
@@ -142,7 +141,7 @@ if 'Saldo_Hembras' in reales.columns:
         x=reales['SEMPROD'], y=reales['Saldo_Hembras'],
         mode='lines+markers', name='Saldo Hembras',
         line=dict(color='purple', dash='dot'), yaxis='y2',
-        hovertemplate='Saldo: %{y:.0f}<extra></extra>'
+        hovertemplate='Saldo Hembras: %{y:.0f}<extra></extra>'
     ))
 
 # Regresión saldo hembras
@@ -151,33 +150,31 @@ if regresion is not None:
         x=regresion['SEMPROD'], y=regresion['Saldo_Hembras_Pred'],
         mode='lines', name='Tendencia Saldo Hembras',
         line=dict(color='magenta', dash='dash'), yaxis='y2',
-        hovertemplate='Tendencia: %{y:.0f}<extra></extra>'
+        hovertemplate='Proyección Hembras: %{y:.0f}<extra></extra>'
     ))
 
-# ➕ Huevos Totales Acumulados (NORMALIZADOS SOLO VISUALMENTE)
+# ➕ Huevos Totales Acumulados (eje Y3 invisible)
 if 'HuevosTotales_Acumulado' in reales.columns:
     ht = reales.dropna(subset=['HuevosTotales_Acumulado'])
     if not ht.empty:
-        # Normalizar los valores entre 0 y 1 (proporcional)
-        min_ht = ht['HuevosTotales_Acumulado'].min()
-        max_ht = ht['HuevosTotales_Acumulado'].max()
-        ht['HuevosTotales_Acum_Normalizado'] = (ht['HuevosTotales_Acumulado'] - min_ht) / (max_ht - min_ht)
         fig.add_trace(go.Scatter(
-            x=ht['SEMPROD'], y=ht['HuevosTotales_Acum_Normalizado'],
-            mode='lines+markers+text', name='Huevos Acumulados (solo visual)',
+            x=ht['SEMPROD'], y=ht['HuevosTotales_Acumulado'],
+            mode='lines+markers+text', name='Huevos Acumulados',
             line=dict(color='green', width=2),
             text=ht['HuevosTotales_Acumulado'].astype(int),
             textposition='top center',
             hovertemplate='Huevos Acumulado: %{text}<extra></extra>',
-            showlegend=True
+            showlegend=True,
+            yaxis='y3'
         ))
 
-# Layout final
+# Layout final con eje Y3 oculto
 fig.update_layout(
     title=f"📊 {titulo}",
     xaxis_title="Semana Productiva",
     yaxis=dict(title="Porcentaje de Huevos", tickformat=".1f"),
     yaxis2=dict(title="Saldo Hembras", overlaying='y', side='right', showgrid=False),
+    yaxis3=dict(overlaying='y', showticklabels=False, visible=False),
     xaxis=dict(tickmode='linear', dtick=1),
     hovermode="x unified",
     legend=dict(
