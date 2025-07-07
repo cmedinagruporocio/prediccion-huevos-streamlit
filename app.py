@@ -9,7 +9,8 @@ st.set_page_config(page_title="Predicción Huevos", layout="wide")
 st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
-Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, el **promedio del estándar** histórico por semana, y el **saldo de hembras** (eje secundario).
+Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, el **promedio del estándar** histórico por semana, y el **saldo de hembras** (eje secundario).  
+Además, se visualiza la curva acumulada de huevos (sin alterar ninguna escala).
 """)
 
 # --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
@@ -68,7 +69,7 @@ else:
     reales = reales.groupby('SEMPROD', as_index=False).agg({
         'Porcentaje_HuevosTotales': 'mean',
         'Saldo_Hembras': 'mean',
-        'HuevosTotales_Acumulado': 'sum'
+        'HuevosTotales_Acumulado': 'mean'
     })
     pred = pred.groupby('SEMPROD', as_index=False).agg({
         'Prediccion_Porcentaje_HuevosTotales': 'mean',
@@ -106,7 +107,7 @@ fig.add_trace(go.Scatter(
     line=dict(color='orange'), yaxis='y1'
 ))
 
-# Banda de incertidumbre (relleno)
+# Banda de incertidumbre
 fig.add_trace(go.Scatter(
     x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
     y=pd.concat([pred['P95'], pred['P5'][::-1]]),
@@ -119,12 +120,12 @@ fig.add_trace(go.Scatter(
 # Líneas invisibles para tooltip de incertidumbre
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'], y=pred['P5'], mode='lines',
-    line=dict(width=0), hovertemplate='Valor mínimo: %{y:.1f}<extra></extra>',
+    line=dict(width=0), hovertemplate='Mín: %{y:.1f}<extra></extra>',
     showlegend=False, yaxis='y1'
 ))
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'], y=pred['P95'], mode='lines',
-    line=dict(width=0), hovertemplate='Valor máximo: %{y:.1f}<extra></extra>',
+    line=dict(width=0), hovertemplate='Máx: %{y:.1f}<extra></extra>',
     showlegend=False, yaxis='y1'
 ))
 
@@ -141,7 +142,7 @@ if 'Saldo_Hembras' in reales.columns:
         x=reales['SEMPROD'], y=reales['Saldo_Hembras'],
         mode='lines+markers', name='Saldo Hembras',
         line=dict(color='purple', dash='dot'), yaxis='y2',
-        hovertemplate='Saldo Hembras: %{y:.0f}<extra></extra>'
+        hovertemplate='Saldo: %{y:.0f}<extra></extra>'
     ))
 
 # Regresión saldo hembras
@@ -150,20 +151,26 @@ if regresion is not None:
         x=regresion['SEMPROD'], y=regresion['Saldo_Hembras_Pred'],
         mode='lines', name='Tendencia Saldo Hembras',
         line=dict(color='magenta', dash='dash'), yaxis='y2',
-        hovertemplate='Proyección Hembras: %{y:.0f}<extra></extra>'
+        hovertemplate='Tendencia: %{y:.0f}<extra></extra>'
     ))
 
-# HuevosTotales_Acumulado como línea verde con etiquetas
+# ➕ Huevos Totales Acumulados (NORMALIZADOS SOLO VISUALMENTE)
 if 'HuevosTotales_Acumulado' in reales.columns:
-    fig.add_trace(go.Scatter(
-        x=reales['SEMPROD'], y=reales['HuevosTotales_Acumulado'],
-        mode='lines+markers+text', name='Huevos Acumulados',
-        line=dict(color='green', width=2),
-        text=reales['HuevosTotales_Acumulado'].apply(lambda x: f"{int(x):,}"),
-        textposition='top center',
-        hovertemplate='Huevos Acumulados: %{y:,}<extra></extra>',
-        yaxis='y'
-    ))
+    ht = reales.dropna(subset=['HuevosTotales_Acumulado'])
+    if not ht.empty:
+        # Normalizar los valores entre 0 y 1 (proporcional)
+        min_ht = ht['HuevosTotales_Acumulado'].min()
+        max_ht = ht['HuevosTotales_Acumulado'].max()
+        ht['HuevosTotales_Acum_Normalizado'] = (ht['HuevosTotales_Acumulado'] - min_ht) / (max_ht - min_ht)
+        fig.add_trace(go.Scatter(
+            x=ht['SEMPROD'], y=ht['HuevosTotales_Acum_Normalizado'],
+            mode='lines+markers+text', name='Huevos Acumulados (solo visual)',
+            line=dict(color='green', width=2),
+            text=ht['HuevosTotales_Acumulado'].astype(int),
+            textposition='top center',
+            hovertemplate='Huevos Acumulado: %{text}<extra></extra>',
+            showlegend=True
+        ))
 
 # Layout final
 fig.update_layout(
