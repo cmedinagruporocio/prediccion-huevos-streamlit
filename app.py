@@ -60,16 +60,13 @@ lote_sel = st.selectbox("Selecciona un Lote (o '-- TODOS --')", ["-- TODOS --"] 
 if lote_sel != "-- TODOS --":
     reales = df_abiertos[(df_abiertos['GRANJA'] == granja_sel) & (df_abiertos['LOTE'] == lote_sel)].copy()
     pred = df_pred[(df_pred['GRANJA'] == granja_sel) & (df_pred['LOTE'] == lote_sel)].copy()
-    titulo = f"Granja: {granja_sel} | Lote: {lote_sel}"
-
-    # --- 7.1 Mostrar métricas de regresión si hay datos --- #
-    if not pred.empty and 'R2_Caida' in pred.columns and 'RMSE_Caida' in pred.columns:
+    titulo_principal = f"\U0001F4CA Granja: {granja_sel} | Lote: {lote_sel}"
+    if not pred.empty and 'R2_Caida' in pred.columns:
         r2_val = pred['R2_Caida'].iloc[0]
         rmse_val = pred['RMSE_Caida'].iloc[0]
-        col1, col2 = st.columns(2)
-        col1.metric("\U0001F50E R² de Caída", f"{r2_val:.3f}")
-        col2.metric("\U0001F4C9 RMSE de Caída", f"{rmse_val:.3f}")
-
+        titulo_secundario = f"R²: {r2_val:.3f} | RMSE: {rmse_val:.2f}"
+    else:
+        titulo_secundario = ""
 else:
     st.info(f"Mostrando el promedio general de todos los lotes de la granja **{granja_sel}**.")
     reales = df_abiertos[df_abiertos['GRANJA'] == granja_sel].copy()
@@ -84,7 +81,8 @@ else:
         'P5': 'mean',
         'P95': 'mean'
     })
-    titulo = f"Granja: {granja_sel} (Promedio de todos los lotes)"
+    titulo_principal = f"\U0001F4CA Granja: {granja_sel} (Promedio de todos los lotes)"
+    titulo_secundario = ""
 
 # --- 8. REGRESIÓN LINEAL DE SALDO HEMBRAS --- #
 regresion = None
@@ -118,21 +116,18 @@ if regresion is not None and not pred.empty:
 # --- 10. GRAFICAR --- #
 fig = go.Figure()
 
-# Curva real
 fig.add_trace(go.Scatter(
     x=reales['SEMPROD'], y=reales['Porcentaje_HuevosTotales'],
     mode='lines+markers', name='Real',
     line=dict(color='blue'), yaxis='y1'
 ))
 
-# Curva predicha
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'], y=pred['Prediccion_Porcentaje_HuevosTotales'],
     mode='lines+markers', name='Predicción',
     line=dict(color='orange'), yaxis='y1'
 ))
 
-# Banda de incertidumbre
 fig.add_trace(go.Scatter(
     x=pd.concat([pred['SEMPROD'], pred['SEMPROD'][::-1]]),
     y=pd.concat([pred['P95'], pred['P5'][::-1]]),
@@ -142,20 +137,17 @@ fig.add_trace(go.Scatter(
     name='Incertidumbre (90%)', yaxis='y1'
 ))
 
-# Estándar promedio
 fig.add_trace(go.Scatter(
     x=promedio_estandar['SEMPROD'], y=promedio_estandar['Estandar'],
     mode='lines', name='Estándar', line=dict(color='black'), yaxis='y1'
 ))
 
-# Saldo hembras real
 fig.add_trace(go.Scatter(
     x=reales['SEMPROD'], y=reales['Saldo_Hembras'],
     mode='lines+markers', name='Saldo Hembras',
     line=dict(color='purple'), yaxis='y2'
 ))
 
-# Tendencia de saldo hembras
 if regresion is not None:
     fig.add_trace(go.Scatter(
         x=regresion['SEMPROD'], y=regresion['Saldo_Hembras_Pred'],
@@ -163,7 +155,6 @@ if regresion is not None:
         line=dict(color='red', dash='dash'), yaxis='y2'
     ))
 
-# Huevos acumulados reales
 fig.add_trace(go.Scatter(
     x=reales['SEMPROD'], y=reales['HuevosTotales_Acumulado'],
     mode='lines+markers+text',
@@ -175,7 +166,6 @@ fig.add_trace(go.Scatter(
     yaxis='y3'
 ))
 
-# Huevos proyectados
 if 'Huevos_Proyectado' in pred.columns:
     fig.add_trace(go.Scatter(
         x=pred['SEMPROD'], y=pred['Huevos_Proyectado'],
@@ -188,9 +178,12 @@ if 'Huevos_Proyectado' in pred.columns:
         yaxis='y3'
     ))
 
-# Layout final
 fig.update_layout(
-    title=f"\U0001F4CA {titulo}",
+    title=dict(
+        text=f"{titulo_principal}<br><sub>{titulo_secundario}</sub>",
+        x=0.01,
+        xanchor='left'
+    ),
     xaxis_title="Semana Productiva",
     yaxis=dict(title="Porcentaje de Huevos", tickformat=".1f"),
     yaxis2=dict(title="Saldo Hembras", overlaying='y', side='right', showgrid=False),
