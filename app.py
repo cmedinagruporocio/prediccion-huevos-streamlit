@@ -67,8 +67,8 @@ else:
     pred = df_pred[df_pred['GRANJA'] == granja_sel].copy()
     reales = reales.groupby('SEMPROD', as_index=False).agg({
         'Porcentaje_HuevosTotales': 'mean',
-        'Saldo_Hembras': 'mean',
-        'HuevosTotales_Acumulado': 'mean'
+        'Saldo_Hembras': 'sum',
+        'HuevosTotales_Acumulado': 'sum'
     })
     pred = pred.groupby('SEMPROD', as_index=False).agg({
         'Prediccion_Porcentaje_HuevosTotales': 'mean',
@@ -139,14 +139,14 @@ fig.add_trace(go.Scatter(
     mode='lines', name='Estándar', line=dict(color='black'), yaxis='y1'
 ))
 
-# Saldo hembras real
+# Saldo hembras real (línea continua)
 fig.add_trace(go.Scatter(
     x=reales['SEMPROD'], y=reales['Saldo_Hembras'],
     mode='lines+markers', name='Saldo Hembras',
     line=dict(color='purple'), yaxis='y2'
 ))
 
-# Regresión saldo hembras
+# Regresión saldo hembras (color rojo)
 if regresion is not None:
     fig.add_trace(go.Scatter(
         x=regresion['SEMPROD'], y=regresion['Saldo_Hembras_Pred'],
