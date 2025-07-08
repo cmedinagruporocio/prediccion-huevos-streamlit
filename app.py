@@ -6,14 +6,14 @@ import numpy as np
 
 # --- CONFIGURACIÓN DE PÁGINA --- #
 st.set_page_config(page_title="Predicción Huevos", layout="wide")
-st.title("📈 Predicción de Porcentaje de Huevos por Granja y Lote")
+st.title("\U0001F4C8 Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
 Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, el **promedio del estándar** histórico por semana, el **saldo de hembras** (eje secundario), los **huevos acumulados reales** y los **huevos proyectados**.
 """)
 
 # --- 1. CARGA MANUAL DEL ARCHIVO REAL --- #
-st.header("📅 Paso 1: Subir archivo real desde SharePoint")
+st.header("\U0001F4C5 Paso 1: Subir archivo real desde SharePoint")
 archivo_real = st.file_uploader("Sube el archivo Libro Verde Reproductoras.xlsx", type=["xlsx"])
 
 if archivo_real is None:
@@ -42,7 +42,7 @@ df_abiertos = df[df['Estado'] == 'Abierto']
 df_abiertos = df_abiertos[['GRANJA', 'LOTE', 'SEMPROD', 'Porcentaje_HuevosTotales', 'Saldo_Hembras', 'HuevosTotales_Acumulado']]
 
 # --- 5. CARGAR PREDICCIONES --- #
-st.header("📄 Paso 2: Visualización de curvas reales y proyectadas")
+st.header("\U0001F4C4 Paso 2: Visualización de curvas reales y proyectadas")
 try:
     df_pred = pd.read_excel("predicciones_huevos.xlsx")
 except FileNotFoundError:
@@ -61,6 +61,15 @@ if lote_sel != "-- TODOS --":
     reales = df_abiertos[(df_abiertos['GRANJA'] == granja_sel) & (df_abiertos['LOTE'] == lote_sel)].copy()
     pred = df_pred[(df_pred['GRANJA'] == granja_sel) & (df_pred['LOTE'] == lote_sel)].copy()
     titulo = f"Granja: {granja_sel} | Lote: {lote_sel}"
+
+    # --- 7.1 Mostrar métricas de regresión si hay datos --- #
+    if not pred.empty and 'R2_Caida' in pred.columns and 'RMSE_Caida' in pred.columns:
+        r2_val = pred['R2_Caida'].iloc[0]
+        rmse_val = pred['RMSE_Caida'].iloc[0]
+        col1, col2 = st.columns(2)
+        col1.metric("\U0001F50E R² de Caída", f"{r2_val:.3f}")
+        col2.metric("\U0001F4C9 RMSE de Caída", f"{rmse_val:.3f}")
+
 else:
     st.info(f"Mostrando el promedio general de todos los lotes de la granja **{granja_sel}**.")
     reales = df_abiertos[df_abiertos['GRANJA'] == granja_sel].copy()
@@ -139,14 +148,14 @@ fig.add_trace(go.Scatter(
     mode='lines', name='Estándar', line=dict(color='black'), yaxis='y1'
 ))
 
-# Saldo hembras real (línea continua)
+# Saldo hembras real
 fig.add_trace(go.Scatter(
     x=reales['SEMPROD'], y=reales['Saldo_Hembras'],
     mode='lines+markers', name='Saldo Hembras',
     line=dict(color='purple'), yaxis='y2'
 ))
 
-# Regresión saldo hembras (color rojo)
+# Tendencia de saldo hembras
 if regresion is not None:
     fig.add_trace(go.Scatter(
         x=regresion['SEMPROD'], y=regresion['Saldo_Hembras_Pred'],
@@ -154,7 +163,7 @@ if regresion is not None:
         line=dict(color='red', dash='dash'), yaxis='y2'
     ))
 
-# Huevos acumulados reales (eje invisible)
+# Huevos acumulados reales
 fig.add_trace(go.Scatter(
     x=reales['SEMPROD'], y=reales['HuevosTotales_Acumulado'],
     mode='lines+markers+text',
@@ -166,7 +175,7 @@ fig.add_trace(go.Scatter(
     yaxis='y3'
 ))
 
-# Huevos proyectados (eje invisible)
+# Huevos proyectados
 if 'Huevos_Proyectado' in pred.columns:
     fig.add_trace(go.Scatter(
         x=pred['SEMPROD'], y=pred['Huevos_Proyectado'],
@@ -181,7 +190,7 @@ if 'Huevos_Proyectado' in pred.columns:
 
 # Layout final
 fig.update_layout(
-    title=f"📊 {titulo}",
+    title=f"\U0001F4CA {titulo}",
     xaxis_title="Semana Productiva",
     yaxis=dict(title="Porcentaje de Huevos", tickformat=".1f"),
     yaxis2=dict(title="Saldo Hembras", overlaying='y', side='right', showgrid=False),
@@ -197,5 +206,4 @@ fig.update_layout(
     )
 )
 
-# Mostrar gráfico
 st.plotly_chart(fig, use_container_width=True)
