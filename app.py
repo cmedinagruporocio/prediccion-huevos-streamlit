@@ -161,7 +161,7 @@ fig.add_trace(go.Scatter(
     name='Huevos Acumulados (Reales)',
     line=dict(color='green', width=2),
     text=[f"{val:,.0f}" for val in reales['HuevosTotales_Acumulado']],
-    textposition="top right",
+    textposition="bottom center",
     hovertemplate='Acumulado Real: %{y:,.0f}<extra></extra>',
     yaxis='y3'
 ))
@@ -173,7 +173,7 @@ if 'Huevos_Proyectado' in pred.columns:
         name='Huevos Proyectados',
         line=dict(color='darkgreen', width=2, dash='dot'),
         text=[f"{val:,.0f}" for val in pred['Huevos_Proyectado']],
-        textposition="top right",
+        textposition="bottom center",
         hovertemplate='Proyectado: %{y:,.0f}<extra></extra>',
         yaxis='y3'
     ))
