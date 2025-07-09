@@ -60,7 +60,7 @@ lote_sel = st.selectbox("Selecciona un Lote (o '-- TODOS --')", ["-- TODOS --"] 
 if lote_sel != "-- TODOS --":
     reales = df_abiertos[(df_abiertos['GRANJA'] == granja_sel) & (df_abiertos['LOTE'] == lote_sel)].copy()
     pred = df_pred[(df_pred['GRANJA'] == granja_sel) & (df_pred['LOTE'] == lote_sel)].copy()
-    titulo_principal = f"\U0001F4CA Granja: {granja_sel} | Lote: {lote_sel}"
+    titulo_principal = f"📊 Granja: {granja_sel} | Lote: {lote_sel}"
     if not pred.empty and 'R2_Caida' in pred.columns:
         r2_val = pred['R2_Caida'].iloc[0]
         rmse_val = pred['RMSE_Caida'].iloc[0]
@@ -81,7 +81,7 @@ else:
         'P5': 'mean',
         'P95': 'mean'
     })
-    titulo_principal = f"\U0001F4CA Granja: {granja_sel} (Promedio de todos los lotes)"
+    titulo_principal = f"📊 Granja: {granja_sel} (Promedio de todos los lotes)"
     titulo_secundario = ""
 
 # --- 8. REGRESIÓN LINEAL DE SALDO HEMBRAS --- #
@@ -118,14 +118,18 @@ fig = go.Figure()
 
 fig.add_trace(go.Scatter(
     x=reales['SEMPROD'], y=reales['Porcentaje_HuevosTotales'],
-    mode='lines+markers', name='Real',
-    line=dict(color='blue'), yaxis='y1'
+    mode='lines+markers+text', name='Real',
+    line=dict(color='blue'), yaxis='y1',
+    text=[f"{val:.1f}%" for val in reales['Porcentaje_HuevosTotales']],
+    textposition="top center"
 ))
 
 fig.add_trace(go.Scatter(
     x=pred['SEMPROD'], y=pred['Prediccion_Porcentaje_HuevosTotales'],
-    mode='lines+markers', name='Predicción',
-    line=dict(color='orange'), yaxis='y1'
+    mode='lines+markers+text', name='Predicción',
+    line=dict(color='orange'), yaxis='y1',
+    text=[f"{val:.1f}%" for val in pred['Prediccion_Porcentaje_HuevosTotales']],
+    textposition="top center"
 ))
 
 fig.add_trace(go.Scatter(
