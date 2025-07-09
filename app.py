@@ -17,7 +17,7 @@ st.header("\U0001F4C5 Paso 1: Subir archivo real desde SharePoint")
 archivo_real = st.file_uploader("Sube el archivo Libro Verde Reproductoras.xlsx", type=["xlsx"])
 
 if archivo_real is None:
-    st.warning("\u26a0\ufe0f Esperando que subas el archivo real desde SharePoint...")
+    st.warning("⚠️ Esperando que subas el archivo real desde SharePoint...")
     st.stop()
 
 # --- 2. LEER DATOS REALES --- #
@@ -68,65 +68,64 @@ if lote_sel != "-- TODOS --":
     else:
         titulo_secundario = ""
 else:
-    st.info(f"Mostrando el promedio general de todos los lotes de la granja **{granja_sel}**.")
+    st.info(f"Mostrando la suma total de proyecciones por lote en la granja **{granja_sel}**.")
 
-    # --- Filtrar solo granja seleccionada --- #
     reales_granja = df_abiertos[df_abiertos['GRANJA'] == granja_sel].copy()
-
-    # --- Filtrar solo LOTES con >=10 semanas --- #
-    lotes_validos = reales_granja.groupby(['GRANJA', 'LOTE']).filter(lambda x: len(x) >= 10)
-
-    # --- Reales agrupados por granja --- #
-    reales = lotes_validos.groupby('SEMPROD', as_index=False).agg({
-        'Porcentaje_HuevosTotales': 'mean',
-        'Saldo_Hembras': 'sum',
-        'HuevosTotales_Acumulado': 'sum'
-    })
-
-    # --- Predicciones por lote válido --- #
     pred_granja = df_pred[df_pred['GRANJA'] == granja_sel].copy()
-    pred_lotes_validos = pred_granja[pred_granja['LOTE'].isin(lotes_validos['LOTE'].unique())]
+    lotes_validos = reales_granja.groupby(['GRANJA', 'LOTE']).filter(lambda x: len(x) >= 10)
+    lotes_unicos = lotes_validos[['GRANJA', 'LOTE']].drop_duplicates()
 
-    pred = pred_lotes_validos.groupby('SEMPROD', as_index=False).agg({
+    pred_lotes = []
+    for _, row in lotes_unicos.iterrows():
+        granja, lote = row['GRANJA'], row['LOTE']
+        reales_lote = reales_granja[(reales_granja['GRANJA'] == granja) & (reales_granja['LOTE'] == lote)].copy()
+        pred_lote = pred_granja[(pred_granja['GRANJA'] == granja) & (pred_granja['LOTE'] == lote)].copy()
+
+        regresion = None
+        df_temp = reales_lote.dropna(subset=['Saldo_Hembras'])
+        if len(df_temp) >= 5:
+            X_reg = df_temp[['SEMPROD']]
+            y_reg = df_temp['Saldo_Hembras']
+            modelo = LinearRegression().fit(X_reg, y_reg)
+            semanas_pred = np.arange(1, 46).reshape(-1, 1)
+            saldo_pred = modelo.predict(semanas_pred)
+            regresion = pd.DataFrame({'SEMPROD': semanas_pred.flatten(), 'Saldo_Hembras_Pred': saldo_pred})
+            saldo_pred = regresion.set_index('SEMPROD')['Saldo_Hembras_Pred']
+
+            huevos_proj = []
+            prev_total = reales_lote['HuevosTotales_Acumulado'].dropna().max()
+            for idx, row_pred in pred_lote.iterrows():
+                semana = row_pred['SEMPROD']
+                porcentaje = row_pred['Prediccion_Porcentaje_HuevosTotales'] / 100
+                saldo = saldo_pred.get(semana, np.nan)
+                if np.isnan(porcentaje) or np.isnan(saldo):
+                    huevos_proj.append(np.nan)
+                    continue
+                incremento = porcentaje * saldo * 7
+                prev_total = prev_total + incremento if not np.isnan(prev_total) else incremento
+                huevos_proj.append(prev_total)
+            pred_lote['Huevos_Proyectado'] = huevos_proj
+
+        pred_lotes.append(pred_lote)
+
+    pred_concat = pd.concat(pred_lotes, ignore_index=True)
+    pred = pred_concat.groupby('SEMPROD', as_index=False).agg({
         'Prediccion_Porcentaje_HuevosTotales': 'mean',
         'P5': 'mean',
         'P95': 'mean',
         'Huevos_Proyectado': 'sum'
     })
 
-    titulo_principal = f"📊 Granja: {granja_sel} (Promedio de lotes con ≥10 semanas)"
+    reales = lotes_validos.groupby('SEMPROD', as_index=False).agg({
+        'Porcentaje_HuevosTotales': 'mean',
+        'Saldo_Hembras': 'sum',
+        'HuevosTotales_Acumulado': 'sum'
+    })
+
+    titulo_principal = f"📊 Granja: {granja_sel} (Suma de lotes válidos)"
     titulo_secundario = ""
 
-# --- 8. REGRESIÓN LINEAL DE SALDO HEMBRAS --- #
-regresion = None
-if 'Saldo_Hembras' in reales.columns and len(reales) >= 5:
-    df_temp = reales.dropna(subset=['Saldo_Hembras'])
-    X_reg = df_temp[['SEMPROD']]
-    y_reg = df_temp['Saldo_Hembras']
-    if len(X_reg) >= 5:
-        modelo = LinearRegression().fit(X_reg, y_reg)
-        semanas_pred = np.arange(1, 46).reshape(-1, 1)
-        saldo_pred = modelo.predict(semanas_pred)
-        regresion = pd.DataFrame({'SEMPROD': semanas_pred.flatten(), 'Saldo_Hembras_Pred': saldo_pred})
-
-# --- 9. CALCULAR HUEVOS PROYECTADOS (solo por lote individual) --- #
-huevos_proj = []
-if lote_sel != "-- TODOS --" and regresion is not None and not pred.empty:
-    saldo_pred = regresion.set_index('SEMPROD')['Saldo_Hembras_Pred']
-    prev_total = reales['HuevosTotales_Acumulado'].dropna().max()
-    for idx, row in pred.iterrows():
-        semana = row['SEMPROD']
-        porcentaje = row['Prediccion_Porcentaje_HuevosTotales'] / 100
-        saldo = saldo_pred.get(semana, np.nan)
-        if np.isnan(porcentaje) or np.isnan(saldo):
-            huevos_proj.append(np.nan)
-            continue
-        incremento = porcentaje * saldo * 7
-        prev_total = prev_total + incremento if not np.isnan(prev_total) else incremento
-        huevos_proj.append(prev_total)
-    pred['Huevos_Proyectado'] = huevos_proj
-
-# --- 10. GRAFICAR --- #
+# --- 8. GRAFICAR --- #
 fig = go.Figure()
 
 fig.add_trace(go.Scatter(
@@ -166,14 +165,6 @@ fig.add_trace(go.Scatter(
     mode='lines+markers', name='Saldo Hembras',
     line=dict(color='purple'), yaxis='y2'
 ))
-
-if regresion is not None:
-    fig.add_trace(go.Scatter(
-        x=regresion['SEMPROD'], y=regresion['Saldo_Hembras_Pred'],
-        mode='lines', name='Tendencia Saldo Hembras',
-        line=dict(color='red', dash='dash'), yaxis='y2',
-        hovertemplate='Tendencia: %{y:.0f}<extra></extra>'
-    ))
 
 fig.add_trace(go.Scatter(
     x=reales['SEMPROD'], y=reales['HuevosTotales_Acumulado'],
