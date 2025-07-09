@@ -69,19 +69,30 @@ if lote_sel != "-- TODOS --":
         titulo_secundario = ""
 else:
     st.info(f"Mostrando el promedio general de todos los lotes de la granja **{granja_sel}**.")
-    reales = df_abiertos[df_abiertos['GRANJA'] == granja_sel].copy()
-    pred = df_pred[df_pred['GRANJA'] == granja_sel].copy()
-    reales = reales.groupby('SEMPROD', as_index=False).agg({
+
+    # --- Filtrar solo granja seleccionada --- #
+    reales_granja = df_abiertos[df_abiertos['GRANJA'] == granja_sel].copy()
+
+    # --- Filtrar solo LOTES con >=10 semanas --- #
+    lotes_validos = reales_granja.groupby(['GRANJA', 'LOTE']).filter(lambda x: len(x) >= 10)
+
+    # --- Agrupaciones por SEMPROD --- #
+    reales = lotes_validos.groupby('SEMPROD', as_index=False).agg({
         'Porcentaje_HuevosTotales': 'mean',
         'Saldo_Hembras': 'sum',
         'HuevosTotales_Acumulado': 'sum'
     })
+
+    pred_granja = df_pred[df_pred['GRANJA'] == granja_sel].copy()
+    pred = pred_granja[pred_granja['LOTE'].isin(lotes_validos[['LOTE']].drop_duplicates()['LOTE'])]
+
     pred = pred.groupby('SEMPROD', as_index=False).agg({
         'Prediccion_Porcentaje_HuevosTotales': 'mean',
         'P5': 'mean',
         'P95': 'mean'
     })
-    titulo_principal = f"📊 Granja: {granja_sel} (Promedio de todos los lotes)"
+
+    titulo_principal = f"📊 Granja: {granja_sel} (Promedio de lotes con ≥10 semanas)"
     titulo_secundario = ""
 
 # --- 8. REGRESIÓN LINEAL DE SALDO HEMBRAS --- #
