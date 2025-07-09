@@ -76,20 +76,22 @@ else:
     # --- Filtrar solo LOTES con >=10 semanas --- #
     lotes_validos = reales_granja.groupby(['GRANJA', 'LOTE']).filter(lambda x: len(x) >= 10)
 
-    # --- Agrupaciones por SEMPROD --- #
+    # --- Reales agrupados por granja --- #
     reales = lotes_validos.groupby('SEMPROD', as_index=False).agg({
         'Porcentaje_HuevosTotales': 'mean',
         'Saldo_Hembras': 'sum',
         'HuevosTotales_Acumulado': 'sum'
     })
 
+    # --- Predicciones por lote válido --- #
     pred_granja = df_pred[df_pred['GRANJA'] == granja_sel].copy()
-    pred = pred_granja[pred_granja['LOTE'].isin(lotes_validos[['LOTE']].drop_duplicates()['LOTE'])]
+    pred_lotes_validos = pred_granja[pred_granja['LOTE'].isin(lotes_validos['LOTE'].unique())]
 
-    pred = pred.groupby('SEMPROD', as_index=False).agg({
+    pred = pred_lotes_validos.groupby('SEMPROD', as_index=False).agg({
         'Prediccion_Porcentaje_HuevosTotales': 'mean',
         'P5': 'mean',
-        'P95': 'mean'
+        'P95': 'mean',
+        'Huevos_Proyectado': 'sum'
     })
 
     titulo_principal = f"📊 Granja: {granja_sel} (Promedio de lotes con ≥10 semanas)"
@@ -107,9 +109,9 @@ if 'Saldo_Hembras' in reales.columns and len(reales) >= 5:
         saldo_pred = modelo.predict(semanas_pred)
         regresion = pd.DataFrame({'SEMPROD': semanas_pred.flatten(), 'Saldo_Hembras_Pred': saldo_pred})
 
-# --- 9. CALCULAR HUEVOS PROYECTADOS --- #
+# --- 9. CALCULAR HUEVOS PROYECTADOS (solo por lote individual) --- #
 huevos_proj = []
-if regresion is not None and not pred.empty:
+if lote_sel != "-- TODOS --" and regresion is not None and not pred.empty:
     saldo_pred = regresion.set_index('SEMPROD')['Saldo_Hembras_Pred']
     prev_total = reales['HuevosTotales_Acumulado'].dropna().max()
     for idx, row in pred.iterrows():
