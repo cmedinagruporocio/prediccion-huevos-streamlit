@@ -17,7 +17,7 @@ st.header("\U0001F4C5 Paso 1: Subir archivo real desde SharePoint")
 archivo_real = st.file_uploader("Sube el archivo Libro Verde Reproductoras.xlsx", type=["xlsx"])
 
 if archivo_real is None:
-    st.warning("⚠️ Esperando que subas el archivo real desde SharePoint...")
+    st.warning("\u26a0\ufe0f Esperando que subas el archivo real desde SharePoint...")
     st.stop()
 
 # --- 2. LEER DATOS REALES --- #
@@ -121,7 +121,8 @@ fig.add_trace(go.Scatter(
     mode='lines+markers+text', name='Real',
     line=dict(color='blue'), yaxis='y1',
     text=[f"{val:.1f}%" for val in reales['Porcentaje_HuevosTotales']],
-    textposition="top center"
+    textposition="top center",
+    hovertemplate='%{y:.1f}%<extra></extra>'
 ))
 
 fig.add_trace(go.Scatter(
@@ -129,7 +130,8 @@ fig.add_trace(go.Scatter(
     mode='lines+markers+text', name='Predicción',
     line=dict(color='orange'), yaxis='y1',
     text=[f"{val:.1f}%" for val in pred['Prediccion_Porcentaje_HuevosTotales']],
-    textposition="top center"
+    textposition="top center",
+    hovertemplate='%{y:.1f}%<extra></extra>'
 ))
 
 fig.add_trace(go.Scatter(
@@ -156,7 +158,8 @@ if regresion is not None:
     fig.add_trace(go.Scatter(
         x=regresion['SEMPROD'], y=regresion['Saldo_Hembras_Pred'],
         mode='lines', name='Tendencia Saldo Hembras',
-        line=dict(color='red', dash='dash'), yaxis='y2'
+        line=dict(color='red', dash='dash'), yaxis='y2',
+        hovertemplate='Tendencia: %{y:.0f}<extra></extra>'
     ))
 
 fig.add_trace(go.Scatter(
