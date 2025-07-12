@@ -18,26 +18,38 @@ Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, 
 # --- 1. CONEXIÓN A SHAREPOINT --- #
 st.header("🔐 Paso 1: Conectar a SharePoint automáticamente")
 
-with st.expander("🔒 Ingresa tus credenciales de SharePoint", expanded=True):
-    usuario = st.text_input("Usuario SharePoint", type="default", value="cmedina@gruporocio.com")
-    contrasena = st.text_input("Contraseña SharePoint", type="password")
-    descargar = st.button("📥 Descargar archivo automáticamente")
+if 'archivo_excel' not in st.session_state:
+    with st.expander("🔒 Ingresa tus credenciales de SharePoint", expanded=True):
+        usuario = st.text_input("Usuario SharePoint", value="cmedina@gruporocio.com")
+        contrasena = st.text_input("Contraseña SharePoint", type="password")
+        descargar = st.button("📥 Descargar archivo automáticamente")
 
-archivo_excel = None
-if descargar:
-    try:
-        site_url = "https://gruporocio.sharepoint.com/sites/IDesarrollo"
-        ruta_archivo = "/sites/IDesarrollo/Documentos compartidos/Libro Verde/Reproductoras/Libro Verde Reproductoras.xlsx"
+        if descargar:
+            try:
+                site_url = "https://gruporocio.sharepoint.com/sites/IDesarrollo"
+                ruta_archivo = "/sites/IDesarrollo/Documentos compartidos/Libro Verde/Reproductoras/Libro Verde Reproductoras.xlsx"
 
-        ctx = ClientContext(site_url).with_credentials(UserCredential(usuario, contrasena))
-        file_obj = io.BytesIO()
-        ctx.web.get_file_by_server_relative_url(ruta_archivo).download(file_obj).execute_query()
-        file_obj.seek(0)
-        archivo_excel = file_obj
-        st.success("✅ Archivo descargado correctamente desde SharePoint.")
-    except Exception as e:
-        st.error(f"❌ Error al conectar o descargar: {e}")
-        st.stop()
+                from office365.sharepoint.client_context import ClientContext
+                from office365.runtime.auth.user_credential import UserCredential
+                import io
+
+                ctx = ClientContext(site_url).with_credentials(UserCredential(usuario, contrasena))
+                file_obj = io.BytesIO()
+                ctx.web.get_file_by_server_relative_url(ruta_archivo).download(file_obj).execute_query()
+                file_obj.seek(0)
+                st.session_state['archivo_excel'] = file_obj
+                st.success("✅ Archivo descargado correctamente desde SharePoint.")
+            except Exception as e:
+                st.error(f"❌ Error al conectar o descargar: {e}")
+                st.stop()
+
+# --- Validación de archivo cargado en memoria ---
+if 'archivo_excel' not in st.session_state:
+    st.warning("⚠️ Aún no se ha cargado el archivo desde SharePoint.")
+    st.stop()
+
+archivo_excel = st.session_state['archivo_excel']
+
 
 # --- 2. LEER DATOS --- #
 if archivo_excel is not None:
