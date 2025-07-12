@@ -22,10 +22,12 @@ Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, 
 st.header("🔐 Paso 1: Conectar a SharePoint automáticamente")
 
 if 'archivo_excel' not in st.session_state:
-    with st.expander("🔒 Ingresa tus credenciales de SharePoint", expanded=True):
-usuario = st.secrets["SHAREPOINT_USER"]
-contrasena = st.secrets["SHAREPOINT_PASS"]
-        descargar = st.button("📥 Descargar archivo automáticamente")
+   with st.expander("🔒 Conexión automática a SharePoint", expanded=True):
+    st.caption("🔐 Las credenciales se toman de forma segura desde `st.secrets`.")
+    usuario = st.secrets["SHAREPOINT_USER"]
+    contrasena = st.secrets["SHAREPOINT_PASS"]
+    descargar = st.button("📥 Descargar archivo automáticamente")
+
         st.caption("🔐 Tus credenciales no se almacenan. Solo se usan temporalmente para esta sesión.")
 
     if descargar:
