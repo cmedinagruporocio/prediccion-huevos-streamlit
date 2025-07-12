@@ -23,6 +23,7 @@ if 'archivo_excel' not in st.session_state:
         usuario = st.text_input("Usuario SharePoint", value="cmedina@gruporocio.com")
         contrasena = st.text_input("Contraseña SharePoint", type="password")
         descargar = st.button("📥 Descargar archivo automáticamente")
+    st.caption("🔐 Tus credenciales no se almacenan. Solo se usan temporalmente para acceder al archivo desde SharePoint de forma segura.")
 
         if descargar:
             try:
