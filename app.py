@@ -27,9 +27,6 @@ if 'archivo_excel' not in st.session_state:
     usuario = st.secrets["SHAREPOINT_USER"]
     contrasena = st.secrets["SHAREPOINT_PASS"]
     descargar = st.button("📥 Descargar archivo automáticamente")
-
-        st.caption("🔐 Tus credenciales no se almacenan. Solo se usan temporalmente para esta sesión.")
-
     if descargar:
         try:
             site_url = "https://gruporocio.sharepoint.com/sites/IDesarrollo"
