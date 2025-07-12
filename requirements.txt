@@ -1,7 +1,7 @@
 streamlit
 pandas
-plotly
 numpy
-openpyxl
+plotly
 scikit-learn
+openpyxl
 office365-rest-python-client
