@@ -4,14 +4,14 @@ import plotly.graph_objects as go
 from sklearn.linear_model import LinearRegression
 import numpy as np
 st.set_page_config(page_title="Predicción Huevos", layout="wide")
-st.title("\U0001F4C8 Predicción de Porcentaje de Huevos por Granja y Lote")
+st.title("Predicción de Porcentaje de Huevos por Granja y Lote")
 
 st.markdown("""
 Esta aplicación permite visualizar la curva **real**, la **curva proyectada**, la **banda de incertidumbre (90%)**, el **promedio del estándar** histórico por semana, el **saldo de hembras** (eje secundario), los **huevos acumulados reales** y los **huevos proyectados**.
 """)
 
 #1. CARGA MANUAL DEL ARCHIVO REAL#
-st.header("\U0001F4C5 Paso 1: Subir archivo real desde SharePoint")
+st.header("Paso 1: Subir archivo real desde SharePoint")
 archivo_real = st.file_uploader("Sube el archivo Libro Verde Reproductoras.xlsx", type=["xlsx"])
 
 if archivo_real is None:
@@ -196,5 +196,6 @@ fig.update_layout(
         borderwidth=1))
 
 st.plotly_chart(fig, use_container_width=True)
+
 
 
