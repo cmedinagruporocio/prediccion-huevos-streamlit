@@ -67,14 +67,8 @@ if lote_sel != "-- TODOS --":
         titulo_secundario = ""
 else:
     st.info(f"Mostrando el promedio general de todos los lotes de la granja **{granja_sel}**.")
-
-    # --- Filtrar solo granja seleccionada --- #
     reales_granja = df_abiertos[df_abiertos['GRANJA'] == granja_sel].copy()
-
-    # --- Filtrar solo LOTES con >=10 semanas --- #
     lotes_validos = reales_granja.groupby(['GRANJA', 'LOTE']).filter(lambda x: len(x) >= 10)
-
-    # --- Agrupaciones por SEMPROD --- #
     reales = lotes_validos.groupby('SEMPROD', as_index=False).agg({
         'Porcentaje_HuevosTotales': 'mean',
         'Saldo_Hembras': 'sum',
@@ -89,7 +83,7 @@ else:
         'P5': 'mean',
         'P95': 'mean'})
 
-    titulo_principal = f"📊 Granja: {granja_sel} (Promedio de lotes con ≥10 semanas)"
+    titulo_principal = f"Granja: {granja_sel} (Promedio de lotes con ≥10 semanas)"
     titulo_secundario = ""
 
 #8. REGRESIÓN LINEAL DE SALDO HEMBRAS#
@@ -202,4 +196,5 @@ fig.update_layout(
         borderwidth=1))
 
 st.plotly_chart(fig, use_container_width=True)
+
 
